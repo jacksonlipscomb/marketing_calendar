@@ -139,7 +139,7 @@ The function reads the provider key from `Deno.env.get('RESEND_API_KEY')` and th
 
 Real send or stubbed send for the PoC. Real sending through a provider needs a verified sending domain, which is friction inside a two-day window. Defensible PoC scope: the function does the real work (validate, access secret, write to Supabase) and either calls the provider if a key is configured, or records the job as `scheduled`/`queued` without delivering. Pick one and write it in this file before building feature 3.
 
-Current choice: ____________________
+Current choice: real send, test sender, own email only
 
 ## Build order
 
