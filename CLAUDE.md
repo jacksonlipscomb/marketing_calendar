@@ -43,10 +43,10 @@ npm run lint
 npm run typecheck
 npm test             # if present
 
-supabase db push                              # apply migrations
-supabase functions serve schedule-email       # run the function locally
-supabase functions deploy schedule-email      # deploy the function
-supabase secrets set RESEND_API_KEY=...        # set the provider key (never commit it)
+npx supabase db push                          # apply migrations
+npx supabase functions serve schedule-email   # run the function locally
+npx supabase functions deploy schedule-email  # deploy the function
+npx supabase secrets set RESEND_API_KEY=...    # set the provider key (never commit it)
 ```
 
 ## Traps to avoid
