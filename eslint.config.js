@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores(['dist', 'supabase/functions']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
@@ -17,6 +17,14 @@ export default defineConfig([
     ],
     languageOptions: {
       globals: globals.browser,
+    },
+  },
+  {
+    // Generated shadcn primitives export their cva variants next to the component,
+    // which is fine — turn off the fast-refresh-only rule for this folder.
+    files: ['src/components/ui/**'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
     },
   },
 ])

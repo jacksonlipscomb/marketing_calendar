@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import type { Database } from './database.types';
 
 // Browser Supabase client. Uses the anon key, so every request is governed by
 // Row Level Security (see roadmap.md). The client can read/write `events` and
@@ -16,4 +17,4 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
