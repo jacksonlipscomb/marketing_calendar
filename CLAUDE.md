@@ -16,7 +16,8 @@ These define whether the PoC succeeds. Do not violate them for convenience or sp
 1. All writes to `email_jobs` (insert and every status change) go through the `schedule-email` edge function using the service role. The client never writes to `email_jobs`. It reads only.
 2. The edge function is the point of the project, not plumbing to route around. If a task seems easier by writing email rows from the client, that is the failure this PoC exists to prevent.
 3. RLS stays real. The missing insert/update/delete policy on `email_jobs` is intentional. Do not add one, and do not use "allow all" to unblock yourself.
-4. `RESEND_API_KEY` lives only in Supabase Edge Function secrets, read via `Deno.env.get`. Never in Vault, never in the client bundle, never committed to git.
+4. `RESEND_API_KEY` and `ALLOWED_RECIPIENT_EMAIL` live only in Supabase Edge Function secrets, read via `Deno.env.get`. Never in Vault, never in the client bundle, never committed to git.
+5. The recipient allowlist is enforced server-side in the function (`ALLOWED_RECIPIENT_EMAIL`, fail closed). The client's `VITE_OWNER_EMAIL` only locks the field for display and is never trusted — any authenticated (including anonymous) caller can invoke the function, so the guard must live in the function.
 
 ## Working agreement
 
@@ -28,11 +29,13 @@ These define whether the PoC succeeds. Do not violate them for convenience or sp
 ## Stack
 
 - Frontend: Vite, React, TypeScript.
-- Routing and server state: TanStack Router, TanStack Query.
-- Client state: Zustand.
-- UI: shadcn over Radix, Tailwind.
-- Forms and validation: react-hook-form with Zod. Validate edge function input with Zod too, not just the client.
-- Supabase client: `src/lib/supabase.ts`, anon key, RLS-governed.
+- Routing and server state: TanStack Router (code-based router in `src/router.tsx`), TanStack Query.
+- Client state: Zustand (`src/lib/uiStore.ts`).
+- UI: shadcn over Radix, Tailwind **v4**. Tailwind v4 has no `tailwind.config`; it is wired via `@tailwindcss/vite` plus `@import "tailwindcss"` in `src/index.css`. shadcn primitives live in `src/components/ui/`.
+- Forms and validation: react-hook-form with Zod (v4). Validate edge function input with Zod too, not just the client.
+- Calendar: custom month grid on `date-fns` (no calendar library).
+- Supabase client: `src/lib/supabase.ts`, anon/publishable key, RLS-governed.
+- Auth: anonymous sign-in (`supabase.auth.signInAnonymously()` in `src/lib/auth.ts`) so RLS `to authenticated` is satisfied with no login UI. Requires "Allow anonymous sign-ins" enabled in the Supabase dashboard.
 
 ## Commands
 
@@ -46,8 +49,11 @@ npm test             # if present
 npx supabase db push                          # apply migrations
 npx supabase functions serve schedule-email   # run the function locally
 npx supabase functions deploy schedule-email  # deploy the function
-npx supabase secrets set RESEND_API_KEY=...    # set the provider key (never commit it)
+npx supabase secrets set RESEND_API_KEY=...           # provider key (never commit it)
+npx supabase secrets set ALLOWED_RECIPIENT_EMAIL=...  # server-side recipient allowlist
 ```
+
+Dashboard step (not a CLI command): enable "Allow anonymous sign-ins" (Auth → Sign In / Providers), or every RLS-governed query is denied.
 
 ## Traps to avoid
 
@@ -57,7 +63,8 @@ npx supabase secrets set RESEND_API_KEY=...    # set the provider key (never com
 - Enabling both Cloudflare's Git integration and the Actions frontend deploy. Pick one or you double-deploy. See `structure.md`.
 - Treating `supabase db push` in CI as a normal pattern. It is PoC-only here because there is one environment. Do not carry it into a real multi-environment project.
 - Reporting that email sending works when the send is stubbed. State exactly what is real.
+- Forgetting table GRANTs. Hosted Supabase projects do NOT auto-grant table privileges to roles for migration-created tables, and RLS only filters on top of grants — missing grants surface as `permission denied for table ...` before RLS runs. Grants live in `0002_grants.sql` (`authenticated`) and `0003_grants_service_role.sql` (`service_role`). Grant only the roles the app uses (`authenticated` + `service_role`); never grant `anon`.
 
-## Open decision
+## Open decision — settled
 
-Real send or stubbed send is recorded in `roadmap.md` under "Open decision." If that line is still blank, do not build the send path. Ask the owner to settle it first.
+Settled in `roadmap.md`: **real send, test sender, own email only**. The send path is built accordingly — the function calls Resend with the shared test sender (`onboarding@resend.dev`) and delivers only to the `ALLOWED_RECIPIENT_EMAIL` address. Future-dated jobs are persisted as `scheduled` but not auto-delivered (no worker; out of scope). If a change reopens this, re-settle it in `roadmap.md` first.

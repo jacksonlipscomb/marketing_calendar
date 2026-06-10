@@ -1,7 +1,35 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { supabase } from "./supabase"
 import type { EmailJobRow } from "./database.types"
 import type { ScheduleEmailRequest } from "./schemas"
+
+// Feature 5: upcoming sends. Read-only list of email_jobs still in `scheduled`
+// status, soonest first, with the parent event's title embedded. Reads only —
+// governed by the email_jobs SELECT policy + grant; never writes.
+export type UpcomingSend = {
+  id: string
+  subject: string
+  recipient: string
+  scheduled_for: string | null
+  status: EmailJobRow["status"]
+  events: { title: string } | null
+}
+
+export function useUpcomingSends() {
+  return useQuery({
+    queryKey: ["upcoming-sends"],
+    queryFn: async (): Promise<UpcomingSend[]> => {
+      const { data, error } = await supabase
+        .from("email_jobs")
+        .select("id, subject, recipient, scheduled_for, status, events(title)")
+        .eq("status", "scheduled")
+        .order("scheduled_for", { ascending: true })
+        .returns<UpcomingSend[]>()
+      if (error) throw new Error(error.message)
+      return data ?? []
+    },
+  })
+}
 
 // Feature 3: the only path that writes `email_jobs`. Calls the edge function, which
 // performs the privileged service-role write. The client never inserts directly.

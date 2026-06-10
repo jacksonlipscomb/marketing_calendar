@@ -111,6 +111,34 @@ create policy email_jobs_read on email_jobs
 
 Note for the agent: the absence of an insert/update/delete policy on `email_jobs` is intentional, not an oversight. Do not add one.
 
+### Grants (required — RLS sits on top of these)
+
+RLS policies only take effect on top of Postgres table GRANTs. Hosted Supabase
+projects do **not** auto-grant table privileges to roles for tables created by
+migrations, so the grants are explicit (in separate migrations because they were
+added after `0001` was already applied):
+
+```sql
+-- 0002_grants.sql — the client (authenticated; anonymous sign-in uses this role)
+grant select, insert, update, delete on table public.events to authenticated;
+grant select on table public.email_jobs to authenticated;
+
+-- 0003_grants_service_role.sql — the edge function
+grant all on table public.events to service_role;
+grant all on table public.email_jobs to service_role;
+```
+
+Only `authenticated` and `service_role` are granted; `anon` is never used (the
+client always signs in anonymously, which *is* the `authenticated` role). A missing
+grant surfaces as `permission denied for table ...` before RLS is even evaluated.
+
+### Auth
+
+The client authenticates with `supabase.auth.signInAnonymously()` (no login UI),
+which yields the `authenticated` role so the RLS policies above apply. "Allow
+anonymous sign-ins" must be enabled in the Supabase dashboard (and in
+`supabase/config.toml` for the local stack).
+
 ## Edge function contract
 
 Function name: `schedule-email`.
@@ -126,37 +154,49 @@ Request body:
 }
 ```
 
-Behavior:
-1. Validate the body. Reject with 400 on missing or malformed fields.
-2. Confirm the `event_id` exists.
-3. Insert an `email_jobs` row using the service role. Set status to `scheduled` if `scheduled_for` is in the future, otherwise attempt an immediate send.
-4. On immediate send (if real sending is enabled): call the provider, then update the row to `sent` with `sent_at` and `provider_message_id`, or to `failed` with `error`.
-5. Return the resulting `email_jobs` row.
+Behavior (as built):
+1. Validate the body with Zod. Reject with 400 on missing or malformed fields.
+2. Enforce the recipient allowlist: compare `recipient` (normalized) to
+   `ALLOWED_RECIPIENT_EMAIL`. Reject 403 on mismatch; 500 (fail closed) if the
+   secret is unset.
+3. Confirm the `event_id` exists, using the service role. 404 if not.
+4. If `scheduled_for` is in the future, insert the `email_jobs` row as `scheduled`
+   and return it — no send. There is no worker, so scheduled jobs are **not**
+   auto-delivered later; that is out of scope for the PoC.
+5. Otherwise insert, then send via Resend (shared test sender
+   `onboarding@resend.dev`, which delivers only to the allowlisted address). Update
+   the row to `sent` (+ `sent_at`, `provider_message_id`) or `failed` (+ `error`).
+   If `RESEND_API_KEY` is unset the row is persisted as `failed` rather than crashing.
+6. Return the resulting `email_jobs` row.
 
-The function reads the provider key from `Deno.env.get('RESEND_API_KEY')` and the Supabase service role key from the auto-injected `SUPABASE_SERVICE_ROLE_KEY`. Neither key is ever sent to the client.
+The function reads `RESEND_API_KEY` and `ALLOWED_RECIPIENT_EMAIL` from edge function
+secrets via `Deno.env.get`, and the Supabase service role key from the auto-injected
+`SUPABASE_SERVICE_ROLE_KEY`. None of these are ever sent to the client.
 
-## Open decision to settle before coding
+## Open decision — settled
 
-Real send or stubbed send for the PoC. Real sending through a provider needs a verified sending domain, which is friction inside a two-day window. Defensible PoC scope: the function does the real work (validate, access secret, write to Supabase) and either calls the provider if a key is configured, or records the job as `scheduled`/`queued` without delivering. Pick one and write it in this file before building feature 3.
+Real send or stubbed send for the PoC. Real sending through a provider needs a verified sending domain, which is friction inside a two-day window. Defensible PoC scope: the function does the real work (validate, access secret, write to Supabase) and either calls the provider if a key is configured, or records the job as `scheduled`/`queued` without delivering.
 
 Current choice: real send, test sender, own email only
+
+Status: **implemented.** The function calls Resend with the shared test sender and delivers only to the `ALLOWED_RECIPIENT_EMAIL` address (no verified domain needed). See the edge function contract above.
 
 ## Build order
 
 Do not build the five features in parallel or in list order. Build the riskiest end-to-end slice first so that an early stop still leaves a working PoC.
 
-**Phase 0 — Setup.** Follow `structure.md`. Done when a trivial edge function deploys and is callable, and the two tables exist in Supabase.
+**Phase 0 — Setup.** Follow `structure.md`. Done when a trivial edge function deploys and is callable, and the two tables exist in Supabase. — **Status: done.**
 
-**Phase 1 — Vertical slice (the PoC).**
+**Phase 1 — Vertical slice (the PoC). — Status: done, verified end-to-end on the linked project.**
 - Create-event form writes a row to `events`.
 - Calendar renders rows from `events`.
 - Attaching an email to an event calls `schedule-email`, which validates, writes to `email_jobs`, and records the result.
 - Acceptance: from the UI, create an event, schedule an email for it, and see a correctly persisted `email_jobs` row with a coherent status. When this round trip works, the PoC claim is proven.
 
-**Phase 2 — Breadth (low risk, cuttable).**
-- Category color-coding on the calendar.
-- Filter or list by category.
-- Upcoming sends panel.
+**Phase 2 — Breadth (low risk, cuttable). — Status: in progress.**
+- Category color-coding on the calendar. — done (in `CalendarMonth`).
+- Filter or list by category. — **not done** (feature 4; `CategoryFilter` not yet built).
+- Upcoming sends panel. — **not done** (feature 5; the `useUpcomingSends` hook exists, the `UpcomingSends` panel does not).
 - Acceptance per feature: the feature reads or writes the right table and reflects state accurately.
 
 ## Working agreement for agents

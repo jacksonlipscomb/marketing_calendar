@@ -8,38 +8,64 @@ Covers repo layout, Supabase setup, Cloudflare Pages, and CI/CD. The data model 
 marketing-calendar/
   src/                       # React app
     components/
+      CalendarMonth.tsx      # month grid (date-fns), category color chips (feat 1)
+      EventDialog.tsx        # create/edit/delete event (feat 2)
+      ScheduleEmailDialog.tsx# attach + schedule email via the function (feat 3)
+      CategoryFilter.tsx     # filter by category (feat 4) — planned, not yet present
+      UpcomingSends.tsx      # scheduled email_jobs panel (feat 5) — planned, not yet present
+      ui/                    # shadcn primitives (button, dialog, select, ...)
     lib/
-      supabase.ts            # browser client (anon key, RLS-governed)
-    routes/                  # TanStack Router routes
+      supabase.ts            # browser client (anon/publishable key, RLS-governed)
+      env.ts                 # validated public env (VITE_OWNER_EMAIL, fail-fast)
+      auth.ts                # ensureSession() — anonymous sign-in
+      database.types.ts      # hand-written types mirroring the migrations
+      schemas.ts             # Zod schemas (event form, schedule-email request)
+      events.ts              # TanStack Query hooks for events
+      emailJobs.ts           # useScheduleEmail (invoke fn), useUpcomingSends
+      uiStore.ts             # Zustand UI state (month, filter, dialogs)
+      queryClient.ts         # TanStack Query client
+      utils.ts               # cn() helper for shadcn
+    router.tsx               # code-based TanStack Router
+    routes/
+      __root.tsx             # app shell
+      index.tsx              # calendar page composing the features
+    index.css                # Tailwind v4 entry (@import "tailwindcss") + theme
   public/
     _redirects               # SPA fallback for client-side routing (see Cloudflare section)
   supabase/
-    config.toml
+    config.toml              # verify_jwt=true, anonymous sign-ins enabled
     migrations/
-      0001_init.sql          # enums, tables, indexes, RLS from roadmap.md
+      0001_init.sql          # enums, tables, indexes, RLS
+      0002_grants.sql        # table grants -> authenticated
+      0003_grants_service_role.sql  # table grants -> service_role
     functions/
       schedule-email/
-        index.ts             # the edge function
+        index.ts             # the edge function (npm: imports, no deno.json)
   .github/
     workflows/
       ci.yml                 # runs on pull requests
       deploy.yml             # runs on push to main
+  components.json            # shadcn config (Tailwind v4, new-york)
   .env.example
   package.json
-  vite.config.ts
+  vite.config.ts             # react + @tailwindcss/vite + @ alias
   tsconfig.json
 ```
 
 ## Supabase setup
 
-1. Create a Supabase project. Note the project ref, the URL, and the anon key.
-2. Put the schema from `roadmap.md` into `supabase/migrations/0001_init.sql`. Apply with `supabase db push` against the linked project.
-3. Edge function lives at `supabase/functions/schedule-email/index.ts`. Deploy with `supabase functions deploy schedule-email`.
-4. Set the email provider key as an edge function secret, not in Vault:
+The CLI is a dev dependency, so all local commands use `npx supabase`.
+
+1. Create a Supabase project. Note the project ref, the URL, and the anon/publishable key.
+2. **Enable "Allow anonymous sign-ins"** (dashboard → Auth → Sign In / Providers). The client signs in anonymously to satisfy RLS `to authenticated`; without it every query is denied.
+3. Migrations live in `supabase/migrations/` — `0001_init.sql` (schema + RLS), `0002_grants.sql` (grants to `authenticated`), `0003_grants_service_role.sql` (grants to `service_role`). Apply all with `npx supabase db push` against the linked project. The grants are **required**: hosted projects don't auto-grant table privileges for migration-created tables, and RLS only filters on top of grants (missing grants → `permission denied for table ...`). See roadmap.md → Data model → Grants.
+4. Edge function lives at `supabase/functions/schedule-email/index.ts`. Deploy with `npx supabase functions deploy schedule-email`.
+5. Set the edge function secrets (not in Vault):
    ```
-   supabase secrets set RESEND_API_KEY=...
+   npx supabase secrets set RESEND_API_KEY=...
+   npx supabase secrets set ALLOWED_RECIPIENT_EMAIL=...   # the recipient allowlist
    ```
-   The function reads it via `Deno.env.get('RESEND_API_KEY')`. The service role key is auto-injected as `SUPABASE_SERVICE_ROLE_KEY`, so it is never stored anywhere by you.
+   The function reads them via `Deno.env.get`. The service role key is auto-injected as `SUPABASE_SERVICE_ROLE_KEY`, so it is never stored anywhere by you. `ALLOWED_RECIPIENT_EMAIL` must equal your Resend account email (the shared test sender only delivers to that address) and the client's `VITE_OWNER_EMAIL`.
 
 ### Why function secrets and not Vault
 
@@ -53,7 +79,7 @@ Build settings:
 - Build command: `npm run build`
 - Output directory: `dist`
 - Root directory: repo root
-- Build-time environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (both public-safe)
+- Build-time environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_OWNER_EMAIL` (all public-safe). `VITE_OWNER_EMAIL` is required at build time — the app fails fast if it is missing (see `src/lib/env.ts`).
 
 Client-side routing fallback. TanStack Router handles routes in the browser, so a direct hit to a deep link must serve `index.html` rather than 404. Add `public/_redirects`:
 
@@ -135,6 +161,7 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_OWNER_EMAIL: ${{ secrets.VITE_OWNER_EMAIL }}
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -148,11 +175,15 @@ Caution on `supabase db push` in CI: it applies migrations to the linked project
 
 | Secret | Lives in | Used by | Must never be in |
 | --- | --- | --- | --- |
-| Anon key | Cloudflare build env, GitHub Actions | Browser client | (public-safe, RLS-governed) |
+| Anon / publishable key | Cloudflare build env, GitHub Actions | Browser client | (public-safe, RLS-governed) |
+| `VITE_OWNER_EMAIL` | Cloudflare build env, GitHub Actions | Browser (locks/prefills recipient field) | (public-safe; display only, not a control) |
 | Service role key | Supabase function runtime (auto-injected) | Edge function | Browser, git, frontend |
 | `RESEND_API_KEY` | Supabase function secrets | Edge function | Browser, git, frontend, GitHub |
+| `ALLOWED_RECIPIENT_EMAIL` | Supabase function secrets | Edge function (recipient allowlist) | (not secret, but kept with the function) |
 | `SUPABASE_ACCESS_TOKEN` | GitHub Actions secret | Deploy job | Runtime, frontend |
 | `SUPABASE_DB_PASSWORD` | GitHub Actions secret | Deploy job (migrations) | Runtime, frontend |
 | `CLOUDFLARE_API_TOKEN` | GitHub Actions secret | Deploy job | Runtime, frontend |
 
-The single rule that drives the whole table: the email provider key reaches only the edge function. It never touches the browser, the repo, or GitHub. That constraint is the reason the edge function exists.
+The single rule that drives the whole table: the email provider key reaches only the edge function. It never touches the browser, the repo, or GitHub. That constraint is the reason the edge function exists. (`ALLOWED_RECIPIENT_EMAIL` isn't itself secret, but it's the authoritative recipient guard, so it lives in the function — never trust the client's `VITE_OWNER_EMAIL` for that.)
+
+> Note: `deploy.yml` passes `VITE_OWNER_EMAIL` to the frontend build (see below), so when you wire up CI deploys remember to add `VITE_OWNER_EMAIL` as a GitHub repo secret alongside the others — otherwise the build bakes in an empty value and the deployed app fails fast at runtime (`src/lib/env.ts`).
