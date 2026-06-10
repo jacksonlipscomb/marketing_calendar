@@ -23,14 +23,14 @@ whole point.
 - **Phase 1 vertical slice** (F1 calendar render, F2 event CRUD, F3 schedule-email
   through the function): **done and verified end-to-end on the live project** — a
   real email sends and an `email_jobs` row persists.
-- **Phase 2 breadth — remaining work:**
-  - F1 category **color-coding**: already done in `CalendarMonth.tsx`.
-  - **F4 — filter by category: NOT built.**
-  - **F5 — upcoming sends panel: data hook built (`useUpcomingSends`), UI panel NOT built.**
+- **Phase 2 breadth: done (2026-06-10).**
+  - F1 category **color-coding**: done in `CalendarMonth.tsx`.
+  - F4 — filter by category: done (`CategoryFilter.tsx`).
+  - F5 — upcoming sends panel: done (`useUpcomingSends` + `UpcomingSends.tsx`).
 
 Repo: `github.com/jacksonlipscomb/marketing_calendar`.
 
-## 3. The two features to build
+## 3. The two features to build (historical — both were built as specified below)
 
 ### F4 — CategoryFilter (`src/components/CategoryFilter.tsx`)
 - The store already has everything: `useUiStore()` exposes
