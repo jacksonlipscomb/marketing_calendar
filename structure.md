@@ -11,8 +11,8 @@ marketing-calendar/
       CalendarMonth.tsx      # month grid (date-fns), category color chips (feat 1)
       EventDialog.tsx        # create/edit/delete event (feat 2)
       ScheduleEmailDialog.tsx# attach + schedule email via the function (feat 3)
-      CategoryFilter.tsx     # filter by category (feat 4) — planned, not yet present
-      UpcomingSends.tsx      # scheduled email_jobs panel (feat 5) — planned, not yet present
+      CategoryFilter.tsx     # filter by category (feat 4)
+      UpcomingSends.tsx      # scheduled email_jobs panel (feat 5, read-only)
       ui/                    # shadcn primitives (button, dialog, select, ...)
     lib/
       supabase.ts            # browser client (anon/publishable key, RLS-governed)

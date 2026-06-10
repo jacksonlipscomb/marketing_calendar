@@ -1,5 +1,12 @@
 # Handoff — Marketing Calendar PoC (finish Phase 2: features 4 & 5)
 
+> **Status: COMPLETE (2026-06-10).** F4 (`CategoryFilter`) and F5 (`UpcomingSends`) are
+> built, wired into `src/routes/index.tsx`, and verified headless (Playwright) against
+> the local stack: filter toggles hide/show events, the panel lists `scheduled` jobs and
+> refreshes after scheduling through the edge function, and the client-write boundary on
+> `email_jobs` still holds (insert denied by RLS). This document is kept for history;
+> `roadmap.md` reflects current state.
+
 Pick-up document for the agent finishing implementation. Self-contained, but read
 `CLAUDE.md`, `roadmap.md`, and `structure.md` first — they are current and authoritative.
 

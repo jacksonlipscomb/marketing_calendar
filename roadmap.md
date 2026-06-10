@@ -193,11 +193,11 @@ Do not build the five features in parallel or in list order. Build the riskiest 
 - Attaching an email to an event calls `schedule-email`, which validates, writes to `email_jobs`, and records the result.
 - Acceptance: from the UI, create an event, schedule an email for it, and see a correctly persisted `email_jobs` row with a coherent status. When this round trip works, the PoC claim is proven.
 
-**Phase 2 — Breadth (low risk, cuttable). — Status: in progress.**
+**Phase 2 — Breadth (low risk, cuttable). — Status: done.**
 - Category color-coding on the calendar. — done (in `CalendarMonth`).
-- Filter or list by category. — **not done** (feature 4; `CategoryFilter` not yet built).
-- Upcoming sends panel. — **not done** (feature 5; the `useUpcomingSends` hook exists, the `UpcomingSends` panel does not).
-- Acceptance per feature: the feature reads or writes the right table and reflects state accurately.
+- Filter or list by category. — done (feature 4; `CategoryFilter` toggles `activeCategories` in the UI store, which `CalendarMonth` already filters by).
+- Upcoming sends panel. — done (feature 5; `UpcomingSends` renders `useUpcomingSends`, read-only, with explicit "not auto-delivered" copy).
+- Acceptance per feature: the feature reads or writes the right table and reflects state accurately. — verified headless (Playwright) against the local stack: filters hide/show events; the panel lists `scheduled` jobs and refreshes after scheduling through the function.
 
 ## Working agreement for agents
 
