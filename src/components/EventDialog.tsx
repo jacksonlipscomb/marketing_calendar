@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { format } from "date-fns"
@@ -38,6 +38,7 @@ export function EventDialog() {
   const createEvent = useCreateEvent()
   const updateEvent = useUpdateEvent()
   const deleteEvent = useDeleteEvent()
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   const form = useForm<EventFormValues>({
     resolver: zodResolver(eventFormSchema),
@@ -50,6 +51,14 @@ export function EventDialog() {
       status: "planned",
     },
   })
+
+  // Close helper: clears any error as we close, so a stale message never lingers
+  // into the next open. (Error state is cleared here rather than in the open effect
+  // to avoid setState-in-effect cascades.)
+  function handleClose() {
+    setErrorMsg(null)
+    closeEventDialog()
+  }
 
   // Reset the form whenever the dialog opens for a different event or date.
   useEffect(() => {
@@ -76,6 +85,7 @@ export function EventDialog() {
   }, [open, event, date, form])
 
   async function onSubmit(values: EventFormValues) {
+    setErrorMsg(null)
     const payload = {
       title: values.title,
       description: values.description?.trim() ? values.description : null,
@@ -84,25 +94,36 @@ export function EventDialog() {
       owner: values.owner?.trim() ? values.owner : null,
       status: values.status,
     }
-    if (event) {
-      await updateEvent.mutateAsync({ id: event.id, values: payload })
-    } else {
-      await createEvent.mutateAsync(payload)
+    // Only close on success; on failure surface the error instead of leaving the
+    // dialog silently stuck open.
+    try {
+      if (event) {
+        await updateEvent.mutateAsync({ id: event.id, values: payload })
+      } else {
+        await createEvent.mutateAsync(payload)
+      }
+      handleClose()
+    } catch (err) {
+      setErrorMsg((err as Error).message)
     }
-    closeEventDialog()
   }
 
   async function onDelete() {
     if (!event) return
-    await deleteEvent.mutateAsync(event.id)
-    closeEventDialog()
+    setErrorMsg(null)
+    try {
+      await deleteEvent.mutateAsync(event.id)
+      handleClose()
+    } catch (err) {
+      setErrorMsg((err as Error).message)
+    }
   }
 
   const pending =
     createEvent.isPending || updateEvent.isPending || deleteEvent.isPending
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && closeEventDialog()}>
+    <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{event ? "Edit event" : "New event"}</DialogTitle>
@@ -199,6 +220,12 @@ export function EventDialog() {
             <Textarea id="description" rows={3} {...form.register("description")} />
           </div>
 
+          {errorMsg && (
+            <p className="text-destructive text-sm" role="alert">
+              {errorMsg}
+            </p>
+          )}
+
           <DialogFooter className="sm:justify-between">
             {event ? (
               <Button
@@ -213,11 +240,7 @@ export function EventDialog() {
               <span />
             )}
             <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => closeEventDialog()}
-              >
+              <Button type="button" variant="outline" onClick={handleClose}>
                 Cancel
               </Button>
               <Button type="submit" disabled={pending}>
