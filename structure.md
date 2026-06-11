@@ -167,6 +167,11 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_OWNER_EMAIL: ${{ secrets.VITE_OWNER_EMAIL }}
+      - name: Ensure Pages project exists   # pages deploy fails if the project is missing
+        run: npx --yes wrangler pages project create marketing-calendar --production-branch=main || echo "Pages project already exists; continuing"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
