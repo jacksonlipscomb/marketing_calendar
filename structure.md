@@ -137,12 +137,17 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: latest
+      - name: Link project   # db push requires a linked project; runners start unlinked
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
       - name: Apply migrations
         run: supabase db push
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
       - name: Deploy edge function
         run: supabase functions deploy schedule-email --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
         env:
