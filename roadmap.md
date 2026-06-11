@@ -199,6 +199,10 @@ Do not build the five features in parallel or in list order. Build the riskiest 
 - Upcoming sends panel. — done (feature 5; `UpcomingSends` renders `useUpcomingSends`, read-only, with explicit "not auto-delivered" copy).
 - Acceptance per feature: the feature reads or writes the right table and reflects state accurately. — verified headless (Playwright) against the local stack: filters hide/show events; the panel lists `scheduled` jobs and refreshes after scheduling through the function.
 
+**Deployed.** The PoC is complete and live at https://marketing-calendar-e7w.pages.dev
+as of 2026-06-11, with CI/CD green end-to-end (migrations → edge function → frontend);
+the production deploy was smoke-tested headless (auth, calendar, filter, panel).
+
 ## Working agreement for agents
 
 - Work in plan mode. Produce a plan and wait for approval before writing or changing files.

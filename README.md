@@ -1,73 +1,97 @@
-# React + TypeScript + Vite
+# Marketing Calendar — NorCal Youth Rowing (PoC)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A marketing calendar for a youth rowing club, organizing events and their emails
+around four categories: **recruiting**, **retention**, **regatta**, and
+**fundraising**.
 
-Currently, two official plugins are available:
+**Status: complete and deployed.** Live at
+[marketing-calendar-e7w.pages.dev](https://marketing-calendar-e7w.pages.dev).
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## What this PoC proves
 
-## React Compiler
+> Scheduling an email for a calendar event routes through a Supabase Edge
+> Function. The function holds the sending secret, validates the request,
+> persists the email job, and records the send result.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+The browser writes calendar `events` directly (RLS-governed), but it **never
+writes `email_jobs`** — it can only read them. All email-job writes happen in
+the `schedule-email` edge function using the service role, because the email
+provider key must never reach the client. That asymmetry is the entire point;
+see `roadmap.md` for the full rationale and data model.
 
-## Expanding the ESLint configuration
+## Features
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+1. Month calendar with events color-coded by category.
+2. Create / edit / delete events (click a day to create, an event to edit).
+3. Schedule an email for an event through the edge function. Immediate sends go
+   out via Resend (test sender, allowlisted recipient only); future-dated sends
+   are persisted as `scheduled` — there is no delivery worker in this PoC, so
+   queued jobs are never auto-sent.
+4. Filter the calendar by category.
+5. Upcoming sends panel: read-only list of `scheduled` jobs, soonest first.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Stack
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+Vite + React 19 + TypeScript · TanStack Router (code-based) + Query · Zustand ·
+react-hook-form + Zod v4 · Tailwind v4 + shadcn/Radix · date-fns ·
+Supabase (Postgres, RLS, anonymous auth, Deno edge function) · Resend ·
+Cloudflare Pages.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Repo guide
+
+| Doc | Contents |
+| --- | --- |
+| `CLAUDE.md` | Standing rules and non-negotiable invariants for agents working here |
+| `roadmap.md` | Purpose, features, data model, RLS/grants, edge function contract |
+| `structure.md` | Repo layout, Supabase setup, Cloudflare Pages, CI/CD pipelines |
+| `HANDOFF.md` | Historical handoff doc from the Phase 2 build (kept for the record) |
+
+## Local development
+
+Against the live Supabase project:
+
+```sh
+npm ci
+cp .env.example .env   # fill in your Supabase URL, publishable key, owner email
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Against a fully local stack (Docker required):
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```sh
+npx supabase start     # local Postgres + auth + edge runtime, migrations applied
+# put the local URL + publishable key from `npx supabase status` in .env.local
+echo "ALLOWED_RECIPIENT_EMAIL=allowed@example.com" > supabase/functions/.env
+npx supabase functions serve schedule-email --env-file supabase/functions/.env
+npm run dev
 ```
+
+Other commands:
+
+```sh
+npm run lint
+npm run typecheck
+npm run build                                  # tsc + vite build to dist/
+npx supabase db push                           # apply migrations to the linked project
+npx supabase functions deploy schedule-email   # deploy the edge function
+```
+
+## Deployment
+
+Everything deploys from GitHub Actions on push to `main` (`.github/workflows/deploy.yml`):
+migrations → edge function → frontend to Cloudflare Pages. CI (`ci.yml`) runs
+lint, typecheck, and build on pull requests. Required repo secrets and the
+secret-separation table are documented in `structure.md`. Cloudflare's native
+Git integration is intentionally **disconnected** — Actions is the single
+deploy path.
+
+## Security model (the short version)
+
+- `RESEND_API_KEY` and `ALLOWED_RECIPIENT_EMAIL` live only in Supabase edge
+  function secrets. Never in the client bundle, git, or Vault.
+- The recipient allowlist is enforced server-side in the function (fail
+  closed). The client's `VITE_OWNER_EMAIL` is display-only.
+- `email_jobs` has a SELECT-only RLS policy for clients; the missing write
+  policy is intentional. Do not add one.
+- The client authenticates with anonymous sign-in, which yields the
+  `authenticated` role that the RLS policies and table grants target.

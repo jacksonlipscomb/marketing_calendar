@@ -91,6 +91,11 @@ Pick one deploy path for the frontend, do not run both or you will double-deploy
 - Option A (used below): deploy from GitHub Actions with Wrangler. All deploy logic stays in one pipeline.
 - Option B: Cloudflare's native Git integration. Point Pages at the repo, set the build settings and env vars in the Cloudflare dashboard, and remove the frontend job from `deploy.yml`. Simpler, fewer GitHub secrets, but the deploy story is split across two systems.
 
+**Settled (2026-06-11): Option A.** The Git integration that was briefly connected
+has been disconnected. The deployed site is
+https://marketing-calendar-e7w.pages.dev (Cloudflare appended a suffix because the
+bare project name was taken; the Pages project itself is `marketing-calendar`).
+
 ## CI/CD pipelines
 
 Two workflows. CI gates merges, deploy runs after merge. Edge functions deploy to Supabase, frontend deploys to Cloudflare. These are two separate targets and cannot share one deploy step.
