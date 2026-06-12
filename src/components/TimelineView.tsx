@@ -67,6 +67,11 @@ export function TimelineView() {
   // Zoom is never "all", so bounds are always defined.
   const { start, end } = rangeBounds(zoom)!
 
+  // Deliberately its own query rather than taking the page's campaigns as a
+  // prop: when the shared range is "day" or "all", the timeline's window
+  // (week / quarter via timelineZoom) differs from the list's, so the page's
+  // result would be the wrong set. For the other ranges the two queries share
+  // a key and React Query dedupes them.
   const campaignsQuery = useCampaigns(zoom, campaignStatus)
   const deliverablesQuery = useDeliverablesInRange(start, end)
 
@@ -190,16 +195,29 @@ export function TimelineView() {
                   >
                     <span className="truncate">{c.name}</span>
                   </div>
-                  {(ticksByCampaign.get(c.id) ?? []).map((t) => (
-                    <div
-                      key={t.id}
-                      data-testid={`timeline-tick-${t.id}`}
-                      onClick={() => openCampaign(c)}
-                      className="ring-foreground/40 z-20 size-2 cursor-pointer place-self-center rounded-full bg-white ring-1"
-                      style={{ gridRow: row, gridColumn: col(t.due_date) }}
-                      title={`${t.title} · due ${format(new Date(`${t.due_date}T00:00:00`), "MMM d")}`}
-                    />
-                  ))}
+                  {(ticksByCampaign.get(c.id) ?? []).map((t) => {
+                    const due = format(
+                      new Date(`${t.due_date}T00:00:00`),
+                      "MMM d",
+                    )
+                    return (
+                      <div
+                        key={t.id}
+                        role="button"
+                        tabIndex={0}
+                        data-testid={`timeline-tick-${t.id}`}
+                        aria-label={`${t.title}, due ${due} — open ${c.name}`}
+                        onClick={() => openCampaign(c)}
+                        onKeyDown={(ev) => {
+                          if (ev.key === "Enter" || ev.key === " ")
+                            openCampaign(c)
+                        }}
+                        className="ring-foreground/40 z-20 size-2 cursor-pointer place-self-center rounded-full bg-white ring-1"
+                        style={{ gridRow: row, gridColumn: col(t.due_date) }}
+                        title={`${t.title} · due ${due}`}
+                      />
+                    )
+                  })}
                 </div>
               )
             })}
