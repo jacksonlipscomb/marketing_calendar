@@ -36,6 +36,9 @@ export type RangeKey = (typeof RANGE_KEYS)[number]
 export type CampaignStatusFilter = CampaignStatus | "all"
 
 // Bounds of "the current <range>" anchored at `today`; null means unbounded.
+// "Week" is Sunday-start (date-fns default) on purpose, matching the calendar
+// grid's Sun–Sat rows. If ops thinking ever shifts to Monday-start weeks,
+// change both together (here via { weekStartsOn: 1 }, and the calendar grid).
 export function rangeBounds(
   range: RangeKey,
   today: Date = new Date(),
