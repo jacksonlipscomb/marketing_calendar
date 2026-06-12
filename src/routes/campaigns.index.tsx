@@ -5,24 +5,16 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { RangeFilter } from "@/components/RangeFilter"
 import { StatusFilter } from "@/components/StatusFilter"
-import { TimelineView } from "@/components/TimelineView"
 import { useCampaigns } from "@/lib/campaigns"
 import { useUiStore } from "@/lib/uiStore"
-import { CAMPAIGN_STATUSES, type CampaignRow } from "@/lib/database.types"
-import { cn } from "@/lib/utils"
+import { CAMPAIGN_STATUSES } from "@/lib/database.types"
 
-// /campaigns — campaigns filtered by time range (overlap semantics) and
-// status, shown either as a list or as the timeline. The filters drive both
-// presentations; the timeline additionally maps the range to its zoom.
+// /campaigns — the campaign list, filtered by time range (overlap semantics)
+// and status, combined server-side. List only — the timeline lives on the
+// calendar page as campaign bars (owner re-spec, 2026-06-11).
 export function CampaignsPage() {
-  const {
-    campaignRange,
-    setCampaignRange,
-    campaignStatus,
-    setCampaignStatus,
-    campaignView,
-    setCampaignView,
-  } = useUiStore()
+  const { campaignRange, setCampaignRange, campaignStatus, setCampaignStatus } =
+    useUiStore()
   const {
     data: campaigns = [],
     isLoading,
@@ -46,55 +38,10 @@ export function CampaignsPage() {
         value={campaignStatus}
         onChange={setCampaignStatus}
       />
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-muted-foreground text-sm">View:</span>
-        {(["list", "timeline"] as const).map((view) => (
-          <button
-            key={view}
-            type="button"
-            aria-pressed={campaignView === view}
-            data-testid={`view-${view}`}
-            onClick={() => setCampaignView(view)}
-            className={cn(
-              "rounded-full border px-3 py-1 text-xs font-medium capitalize transition-colors",
-              campaignView === view
-                ? "bg-primary text-primary-foreground border-transparent"
-                : "bg-background text-muted-foreground hover:bg-accent",
-            )}
-          >
-            {view}
-          </button>
-        ))}
-      </div>
 
-      {campaignView === "timeline" ? (
-        <TimelineView />
-      ) : (
-        <CampaignList
-          campaigns={campaigns}
-          isLoading={isLoading}
-          error={error}
-          filtered={filtered}
-        />
+      {error && (
+        <p className="text-destructive text-sm">{(error as Error).message}</p>
       )}
-    </div>
-  )
-}
-
-function CampaignList({
-  campaigns,
-  isLoading,
-  error,
-  filtered,
-}: {
-  campaigns: CampaignRow[]
-  isLoading: boolean
-  error: Error | null
-  filtered: boolean
-}) {
-  return (
-    <div className="grid gap-2">
-      {error && <p className="text-destructive text-sm">{error.message}</p>}
       {isLoading && (
         <p className="text-muted-foreground text-sm">Loading campaigns…</p>
       )}

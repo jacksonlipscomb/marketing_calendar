@@ -59,19 +59,6 @@ export function rangeBounds(
   }
 }
 
-// The timeline needs a bounded window, so the shared range filter maps onto a
-// zoom level (features.md: zoom ties to the existing range filter, not a second
-// control). "Today" zooms to its week; unbounded "all" falls back to the
-// quarter — wide enough to show concurrency, narrow enough to keep day columns
-// readable.
-export type TimelineZoom = Exclude<RangeKey, "day" | "all">
-
-export function timelineZoom(range: RangeKey): TimelineZoom {
-  if (range === "day") return "week"
-  if (range === "all") return "quarter"
-  return range
-}
-
 // Campaigns are read/written directly by the client (RLS-governed).
 // Range filtering uses OVERLAP semantics, bounds inclusive (roadmap.md):
 // a campaign is in range when start_date <= range_end AND end_date >= range_start,
@@ -102,6 +89,26 @@ export function useCampaigns(
       const { data, error } = await query.order("start_date", {
         ascending: true,
       })
+      if (error) throw new Error(error.message)
+      return data ?? []
+    },
+  })
+}
+
+// Campaigns overlapping an explicit window (same inclusive overlap rule as
+// above). The calendar uses this with monthGridRange(currentMonth) — the full
+// visible 42-cell grid including adjacent-month edge days — because it
+// navigates to arbitrary months while useCampaigns is anchored at today.
+export function useCampaignsInRange(start: Date, end: Date) {
+  return useQuery({
+    queryKey: ["campaigns", "window", fmt(start), fmt(end)],
+    queryFn: async (): Promise<CampaignRow[]> => {
+      const { data, error } = await supabase
+        .from("campaigns")
+        .select("*")
+        .lte("start_date", fmt(end))
+        .gte("end_date", fmt(start))
+        .order("start_date", { ascending: true })
       if (error) throw new Error(error.message)
       return data ?? []
     },

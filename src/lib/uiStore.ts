@@ -21,16 +21,12 @@ type UiState = {
   activeCategories: CampaignCategory[]
   toggleCategory: (category: CampaignCategory) => void
 
-  // Campaign list filters. Global (not page-local) so the timeline ties its
-  // zoom to the same range selection (features.md).
+  // Campaign list filters (kept here rather than page-local so the selection
+  // survives navigating away and back within a session).
   campaignRange: RangeKey
   setCampaignRange: (range: RangeKey) => void
   campaignStatus: CampaignStatusFilter
   setCampaignStatus: (status: CampaignStatusFilter) => void
-
-  // /campaigns presentation: list rows or the timeline (horizontal bars).
-  campaignView: "list" | "timeline"
-  setCampaignView: (view: "list" | "timeline") => void
 
   // Schedule-email dialog for a given deliverable. Campaign/deliverable
   // create+edit are pages (page pattern), not dialogs, so no form state here.
@@ -57,9 +53,6 @@ export const useUiStore = create<UiState>((set) => ({
   setCampaignRange: (range) => set({ campaignRange: range }),
   campaignStatus: "all",
   setCampaignStatus: (status) => set({ campaignStatus: status }),
-
-  campaignView: "list",
-  setCampaignView: (view) => set({ campaignView: view }),
 
   scheduleDialog: { open: false, deliverable: null },
   openScheduleEmail: (deliverable) =>
