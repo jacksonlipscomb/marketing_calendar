@@ -214,8 +214,10 @@ export function CalendarMonth() {
                             tabIndex={0}
                             onClick={() => openCampaign(d.campaign_id)}
                             onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ")
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault() // Space must not scroll the page
                                 openCampaign(d.campaign_id)
+                              }
                             }}
                             className="group flex cursor-pointer items-start gap-1 rounded px-1.5 py-0.5 text-xs text-white"
                             style={{
@@ -254,8 +256,10 @@ export function CalendarMonth() {
                   aria-label={`${seg.campaign.name}, ${seg.campaign.start_date} to ${seg.campaign.end_date}`}
                   onClick={() => openCampaign(seg.campaign.id)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ")
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault() // Space must not scroll the page
                       openCampaign(seg.campaign.id)
+                    }
                   }}
                   className={cn(
                     "absolute z-10 flex cursor-pointer items-center rounded-full px-2 text-xs text-white hover:opacity-90",

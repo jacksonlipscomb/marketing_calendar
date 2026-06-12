@@ -22,7 +22,7 @@ import type {
 
 const fmt = (d: Date) => format(d, "yyyy-MM-dd")
 
-// Range filter keys for the campaign list (and, in Phase 3, the timeline zoom).
+// Range filter keys for the campaign list.
 export const RANGE_KEYS = [
   "day",
   "week",
