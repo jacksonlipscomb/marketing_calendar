@@ -3,12 +3,24 @@ import { format } from "date-fns"
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { RangeFilter } from "@/components/RangeFilter"
+import { StatusFilter } from "@/components/StatusFilter"
 import { useCampaigns } from "@/lib/campaigns"
+import { useUiStore } from "@/lib/uiStore"
+import { CAMPAIGN_STATUSES } from "@/lib/database.types"
 
-// /campaigns — the campaign list. Phase 1 lists everything in start-date order;
-// the range (overlap) + status filters arrive in Phase 2 on this same page.
+// /campaigns — the campaign list, filtered by time range (overlap semantics)
+// and status. Both filters apply in the query, combined server-side.
 export function CampaignsPage() {
-  const { data: campaigns = [], isLoading, error } = useCampaigns()
+  const { campaignRange, setCampaignRange, campaignStatus, setCampaignStatus } =
+    useUiStore()
+  const {
+    data: campaigns = [],
+    isLoading,
+    error,
+  } = useCampaigns(campaignRange, campaignStatus)
+
+  const filtered = campaignRange !== "all" || campaignStatus !== "all"
 
   return (
     <div className="grid gap-4">
@@ -19,6 +31,13 @@ export function CampaignsPage() {
         </Button>
       </div>
 
+      <RangeFilter value={campaignRange} onChange={setCampaignRange} />
+      <StatusFilter
+        options={CAMPAIGN_STATUSES}
+        value={campaignStatus}
+        onChange={setCampaignStatus}
+      />
+
       {error && (
         <p className="text-destructive text-sm">{(error as Error).message}</p>
       )}
@@ -27,7 +46,9 @@ export function CampaignsPage() {
       )}
       {!isLoading && !error && campaigns.length === 0 && (
         <p className="text-muted-foreground text-sm">
-          No campaigns yet. Create one to start planning.
+          {filtered
+            ? "No campaigns match the current filters."
+            : "No campaigns yet. Create one to start planning."}
         </p>
       )}
 
