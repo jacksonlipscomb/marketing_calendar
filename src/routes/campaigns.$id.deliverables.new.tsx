@@ -9,8 +9,15 @@ import { useCreateDeliverable } from "@/lib/deliverables"
 export function NewDeliverablePage() {
   const { campaignId } = useParams({ strict: false }) as { campaignId: string }
   const navigate = useNavigate()
-  const { data: campaign } = useCampaign(campaignId)
+  const { data: campaign, isLoading } = useCampaign(campaignId)
   const createDeliverable = useCreateDeliverable()
+
+  // react-hook-form captures defaultValues on first render, so wait for the
+  // campaign before mounting the form — on a direct (uncached) hit the due-date
+  // default would otherwise stay blank.
+  if (isLoading) {
+    return <p className="text-muted-foreground text-sm">Loading campaign…</p>
+  }
 
   return (
     <div className="grid gap-4">

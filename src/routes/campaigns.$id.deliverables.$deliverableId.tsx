@@ -1,6 +1,6 @@
 import { Link, useNavigate, useParams } from "@tanstack/react-router"
 
-import { Button } from "@/components/ui/button"
+import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton"
 import { DeliverableForm } from "@/components/DeliverableForm"
 import { deliverablePayload } from "@/lib/schemas"
 import {
@@ -73,16 +73,13 @@ export function EditDeliverablePage() {
         }}
       />
       <div className="grid justify-start gap-2 border-t pt-4">
-        <Button
-          variant="destructive"
-          onClick={onDelete}
-          disabled={deleteDeliverable.isPending}
-        >
-          Delete deliverable
-        </Button>
-        <p className="text-muted-foreground text-xs">
-          Deletes its email jobs too (cascade).
-        </p>
+        <ConfirmDeleteButton
+          label="Delete deliverable"
+          title={`Delete "${deliverable.title}"?`}
+          description="This permanently deletes the deliverable and its email jobs. This cannot be undone."
+          pending={deleteDeliverable.isPending}
+          onConfirm={onDelete}
+        />
       </div>
     </div>
   )

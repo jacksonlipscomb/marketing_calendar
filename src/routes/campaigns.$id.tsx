@@ -5,6 +5,7 @@ import { Mail } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { CampaignForm } from "@/components/CampaignForm"
+import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton"
 import { campaignPayload } from "@/lib/schemas"
 import {
   useCampaign,
@@ -164,16 +165,13 @@ export function CampaignDetailPage() {
       </section>
 
       <section className="grid justify-start gap-2 border-t pt-4">
-        <Button
-          variant="destructive"
-          onClick={onDelete}
-          disabled={deleteCampaign.isPending}
-        >
-          Delete campaign
-        </Button>
-        <p className="text-muted-foreground text-xs">
-          Deletes its deliverables and their email jobs too (cascade).
-        </p>
+        <ConfirmDeleteButton
+          label="Delete campaign"
+          title={`Delete "${campaign.name}"?`}
+          description={`This permanently deletes the campaign, its ${deliverables.length} deliverable${deliverables.length === 1 ? "" : "s"}, and their email jobs. This cannot be undone.`}
+          pending={deleteCampaign.isPending}
+          onConfirm={onDelete}
+        />
       </section>
     </div>
   )
