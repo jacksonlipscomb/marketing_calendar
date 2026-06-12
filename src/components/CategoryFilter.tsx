@@ -1,8 +1,8 @@
 import { cn } from "@/lib/utils"
 import { useUiStore } from "@/lib/uiStore"
-import { EVENT_CATEGORIES } from "@/lib/database.types"
+import { CAMPAIGN_CATEGORIES } from "@/lib/database.types"
 
-// Feature 4: category filter. Pure toggle UI over useUiStore.activeCategories —
+// Campaign-category filter. Pure toggle UI over useUiStore.activeCategories —
 // CalendarMonth already filters what it renders by that array, so flipping a
 // toggle here updates the calendar with no extra wiring.
 export function CategoryFilter() {
@@ -11,7 +11,7 @@ export function CategoryFilter() {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="text-muted-foreground text-sm">Show:</span>
-      {EVENT_CATEGORIES.map((category) => {
+      {CAMPAIGN_CATEGORIES.map((category) => {
         const active = activeCategories.includes(category)
         return (
           <button

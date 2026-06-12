@@ -1,54 +1,109 @@
-// Hand-written to mirror supabase/migrations/0001_init.sql exactly.
-// (Kept in sync by hand rather than `supabase gen types` so the build has no
-// dependency on a live DB connection; the schema is small and fixed for the PoC.)
+// Hand-written to mirror supabase/migrations/ exactly (0004_reset_campaigns.sql
+// is the current schema). Kept in sync by hand rather than `supabase gen types`
+// so the build has no dependency on a live DB connection.
 //
 // IMPORTANT: after any new migration, re-sync this file — either by hand or by
 // regenerating: `npx supabase gen types typescript --linked > src/lib/database.types.ts`
-// (then re-add the EVENT_CATEGORIES/EVENT_STATUSES exports below).
+// (then re-add the constant exports below).
 
 export type Database = {
   public: {
     Tables: {
-      events: {
+      campaigns: {
         Row: {
           id: string
-          title: string
-          description: string | null
-          category: Database["public"]["Enums"]["event_category"]
-          event_date: string
-          owner: string | null
-          status: Database["public"]["Enums"]["event_status"]
+          name: string
+          goal: string | null
+          category: Database["public"]["Enums"]["campaign_category"]
+          start_date: string
+          end_date: string
+          segmentation: string | null
+          owners: string[]
+          status: Database["public"]["Enums"]["campaign_status"]
+          reminders_enabled: boolean
           created_at: string
           updated_at: string
         }
         Insert: {
           id?: string
-          title: string
-          description?: string | null
-          category: Database["public"]["Enums"]["event_category"]
-          event_date: string
-          owner?: string | null
-          status?: Database["public"]["Enums"]["event_status"]
+          name: string
+          goal?: string | null
+          category: Database["public"]["Enums"]["campaign_category"]
+          start_date: string
+          end_date: string
+          segmentation?: string | null
+          owners?: string[]
+          status?: Database["public"]["Enums"]["campaign_status"]
+          reminders_enabled?: boolean
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
-          title?: string
-          description?: string | null
-          category?: Database["public"]["Enums"]["event_category"]
-          event_date?: string
-          owner?: string | null
-          status?: Database["public"]["Enums"]["event_status"]
+          name?: string
+          goal?: string | null
+          category?: Database["public"]["Enums"]["campaign_category"]
+          start_date?: string
+          end_date?: string
+          segmentation?: string | null
+          owners?: string[]
+          status?: Database["public"]["Enums"]["campaign_status"]
+          reminders_enabled?: boolean
           created_at?: string
           updated_at?: string
         }
         Relationships: []
       }
+      deliverables: {
+        Row: {
+          id: string
+          campaign_id: string
+          title: string
+          details: string | null
+          due_date: string
+          owners: string[]
+          status: Database["public"]["Enums"]["deliverable_status"]
+          reminded_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          campaign_id: string
+          title: string
+          details?: string | null
+          due_date: string
+          owners?: string[]
+          status?: Database["public"]["Enums"]["deliverable_status"]
+          reminded_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          campaign_id?: string
+          title?: string
+          details?: string | null
+          due_date?: string
+          owners?: string[]
+          status?: Database["public"]["Enums"]["deliverable_status"]
+          reminded_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deliverables_campaign_id_fkey"
+            columns: ["campaign_id"]
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_jobs: {
         Row: {
           id: string
-          event_id: string
+          deliverable_id: string
           subject: string
           body: string
           recipient: string
@@ -61,7 +116,7 @@ export type Database = {
         }
         Insert: {
           id?: string
-          event_id: string
+          deliverable_id: string
           subject: string
           body: string
           recipient: string
@@ -74,7 +129,7 @@ export type Database = {
         }
         Update: {
           id?: string
-          event_id?: string
+          deliverable_id?: string
           subject?: string
           body?: string
           recipient?: string
@@ -87,9 +142,9 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "email_jobs_event_id_fkey"
-            columns: ["event_id"]
-            referencedRelation: "events"
+            foreignKeyName: "email_jobs_deliverable_id_fkey"
+            columns: ["deliverable_id"]
+            referencedRelation: "deliverables"
             referencedColumns: ["id"]
           },
         ]
@@ -98,31 +153,43 @@ export type Database = {
     Views: Record<never, never>
     Functions: Record<never, never>
     Enums: {
-      event_category: "recruiting" | "retention" | "regatta" | "fundraising"
-      event_status: "planned" | "confirmed" | "done"
+      campaign_category: "recruiting" | "retention" | "regatta" | "fundraising"
+      campaign_status: "planned" | "in_progress" | "done"
+      deliverable_status: "backlog" | "in_progress" | "complete"
       email_status: "draft" | "scheduled" | "sent" | "failed"
     }
     CompositeTypes: Record<never, never>
   }
 }
 
-export type EventCategory = Database["public"]["Enums"]["event_category"]
-export type EventStatus = Database["public"]["Enums"]["event_status"]
+export type CampaignCategory = Database["public"]["Enums"]["campaign_category"]
+export type CampaignStatus = Database["public"]["Enums"]["campaign_status"]
+export type DeliverableStatus = Database["public"]["Enums"]["deliverable_status"]
 export type EmailStatus = Database["public"]["Enums"]["email_status"]
 
-export type EventRow = Database["public"]["Tables"]["events"]["Row"]
-export type EventInsert = Database["public"]["Tables"]["events"]["Insert"]
-export type EventUpdate = Database["public"]["Tables"]["events"]["Update"]
+export type CampaignRow = Database["public"]["Tables"]["campaigns"]["Row"]
+export type CampaignInsert = Database["public"]["Tables"]["campaigns"]["Insert"]
+export type CampaignUpdate = Database["public"]["Tables"]["campaigns"]["Update"]
+export type DeliverableRow = Database["public"]["Tables"]["deliverables"]["Row"]
+export type DeliverableInsert =
+  Database["public"]["Tables"]["deliverables"]["Insert"]
+export type DeliverableUpdate =
+  Database["public"]["Tables"]["deliverables"]["Update"]
 export type EmailJobRow = Database["public"]["Tables"]["email_jobs"]["Row"]
 
-export const EVENT_CATEGORIES = [
+export const CAMPAIGN_CATEGORIES = [
   "recruiting",
   "retention",
   "regatta",
   "fundraising",
-] as const satisfies readonly EventCategory[]
-export const EVENT_STATUSES = [
+] as const satisfies readonly CampaignCategory[]
+export const CAMPAIGN_STATUSES = [
   "planned",
-  "confirmed",
+  "in_progress",
   "done",
-] as const satisfies readonly EventStatus[]
+] as const satisfies readonly CampaignStatus[]
+export const DELIVERABLE_STATUSES = [
+  "backlog",
+  "in_progress",
+  "complete",
+] as const satisfies readonly DeliverableStatus[]

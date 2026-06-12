@@ -8,9 +8,18 @@ Ship **50–80% of the features well enough to tell 100% of the story**. The sto
 
 Ordering logic: Phase 1 is the dependency root (everything reads the new schema). Phase 2 makes the model legible. Phases 3–5 follow the owner's stated priority: timeline (highest demo value), reminders (proves the function is the backbone, not a one-off), templates (cheap once the model exists, shows product thinking). Phase 6 is stretch.
 
-## Phase 1 — Foundation: campaign/deliverable model — **status: not started**
+## Phase 1 — Foundation: campaign/deliverable model — **status: built, in owner review (branch `phase1-campaign-model`)**
 
 The reset migration and the minimum UI to use it. Blocking everything else.
+
+Verified so far (local stack, 2026-06-11): migrations `0001→0004` apply cleanly in
+the same sequence prod will run; old tables/enums gone, new schema live; as the
+`authenticated` role, campaign + deliverable CRUD works with `text[]` owners and a
+direct `email_jobs` insert is RLS-denied; the re-pointed function (served locally)
+returned 201 + a coherent `scheduled` row for a future-dated job, 403 for a
+disallowed recipient, 404 for an unknown deliverable. lint/typecheck/build green.
+**Not yet exercised:** clicking through the React UI itself, and nothing has
+touched prod — the destructive migration applies only when the owner merges.
 
 - `0004_reset_campaigns.sql`: drop PoC tables (`email_jobs` then `events` then old enums), create `campaigns` + `deliverables` + re-pointed `email_jobs`, RLS, grants. **Destructive** — see roadmap.md → Reset migration.
 - Re-point `schedule-email` to `deliverable_id` (request schema, existence check, types).

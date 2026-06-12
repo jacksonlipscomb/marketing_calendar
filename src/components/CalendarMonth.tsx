@@ -1,16 +1,24 @@
 import { useMemo } from "react"
 import { eachDayOfInterval, format, isSameMonth, isToday } from "date-fns"
+import { useNavigate } from "@tanstack/react-router"
 import { Mail } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useUiStore } from "@/lib/uiStore"
-import { useEvents, monthGridRange } from "@/lib/events"
-import type { EventRow } from "@/lib/database.types"
+import {
+  monthGridRange,
+  useMonthDeliverables,
+  type CalendarDeliverable,
+} from "@/lib/deliverables"
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 const dayKey = (d: Date) => format(d, "yyyy-MM-dd")
 
+// Month grid of deliverables by due date, colored by the parent campaign's
+// category. Clicking a deliverable opens its campaign page; the mail icon
+// opens the schedule-email dialog. (Same-date wrapping and the campaign
+// timeline land in Phases 2–3.)
 export function CalendarMonth() {
   const {
     currentMonth,
@@ -18,29 +26,40 @@ export function CalendarMonth() {
     prevMonth,
     goToday,
     activeCategories,
-    openCreateEvent,
-    openEditEvent,
     openScheduleEmail,
   } = useUiStore()
+  const navigate = useNavigate()
 
-  const { data: events = [], isLoading, error } = useEvents(currentMonth)
+  const {
+    data: deliverables = [],
+    isLoading,
+    error,
+  } = useMonthDeliverables(currentMonth)
 
   const days = useMemo(() => {
     const { start, end } = monthGridRange(currentMonth)
     return eachDayOfInterval({ start, end })
   }, [currentMonth])
 
-  // Group the (category-filtered) events by their date for quick per-cell lookup.
-  const eventsByDay = useMemo(() => {
-    const map = new Map<string, EventRow[]>()
-    for (const ev of events) {
-      if (!activeCategories.includes(ev.category)) continue
-      const list = map.get(ev.event_date) ?? []
-      list.push(ev)
-      map.set(ev.event_date, list)
+  // Group the (category-filtered) deliverables by due date for per-cell lookup.
+  const deliverablesByDay = useMemo(() => {
+    const map = new Map<string, CalendarDeliverable[]>()
+    for (const d of deliverables) {
+      const category = d.campaigns?.category
+      if (category && !activeCategories.includes(category)) continue
+      const list = map.get(d.due_date) ?? []
+      list.push(d)
+      map.set(d.due_date, list)
     }
     return map
-  }, [events, activeCategories])
+  }, [deliverables, activeCategories])
+
+  function openCampaign(d: CalendarDeliverable) {
+    navigate({
+      to: "/campaigns/$campaignId",
+      params: { campaignId: d.campaign_id },
+    })
+  }
 
   return (
     <div className="grid gap-3">
@@ -77,15 +96,14 @@ export function CalendarMonth() {
 
         {days.map((day) => {
           const key = dayKey(day)
-          const dayEvents = eventsByDay.get(key) ?? []
+          const dayItems = deliverablesByDay.get(key) ?? []
           const inMonth = isSameMonth(day, currentMonth)
           return (
             <div
               key={key}
               data-testid={`day-${key}`}
-              onClick={() => openCreateEvent(key)}
               className={cn(
-                "min-h-24 cursor-pointer border-r border-b p-1 text-left align-top last:border-r-0 hover:bg-accent/40",
+                "min-h-24 border-r border-b p-1 text-left align-top last:border-r-0",
                 !inMonth && "bg-muted/30 text-muted-foreground",
               )}
             >
@@ -101,32 +119,28 @@ export function CalendarMonth() {
                 </span>
               </div>
               <div className="mt-1 grid gap-1">
-                {dayEvents.map((ev) => (
+                {dayItems.map((d) => (
                   <div
-                    key={ev.id}
+                    key={d.id}
                     role="button"
                     tabIndex={0}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      openEditEvent(ev)
-                    }}
+                    onClick={() => openCampaign(d)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.stopPropagation()
-                        openEditEvent(ev)
-                      }
+                      if (e.key === "Enter" || e.key === " ") openCampaign(d)
                     }}
-                    className="group flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-white"
-                    style={{ backgroundColor: `var(--cat-${ev.category})` }}
-                    title={`${ev.title} · ${ev.category}`}
+                    className="group flex cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 text-xs text-white"
+                    style={{
+                      backgroundColor: `var(--cat-${d.campaigns?.category ?? "recruiting"})`,
+                    }}
+                    title={`${d.title} · ${d.campaigns?.name ?? "campaign"}`}
                   >
-                    <span className="truncate">{ev.title}</span>
+                    <span className="truncate">{d.title}</span>
                     <button
                       type="button"
                       aria-label="Schedule email"
                       onClick={(e) => {
                         e.stopPropagation()
-                        openScheduleEmail(ev)
+                        openScheduleEmail({ id: d.id, title: d.title })
                       }}
                       className="ml-auto shrink-0 opacity-80 hover:opacity-100"
                     >
@@ -141,7 +155,7 @@ export function CalendarMonth() {
       </div>
 
       {isLoading && (
-        <p className="text-muted-foreground text-sm">Loading events…</p>
+        <p className="text-muted-foreground text-sm">Loading deliverables…</p>
       )}
     </div>
   )
