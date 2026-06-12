@@ -10,15 +10,16 @@ Entries marked with a phase are future state; everything else exists as of Phase
 marketing-calendar/
   src/
     components/
-      CalendarMonth.tsx        # month grid (date-fns); renders deliverables by due date
-                               #   (same-date wrapping lands in Phase 2)
+      CalendarMonth.tsx        # month grid (date-fns); deliverables by due date, same-date wrapping
       CampaignForm.tsx         # shared create/edit campaign form (page pattern)
       DeliverableForm.tsx      # shared create/edit deliverable form (page pattern)
       OwnersInput.tsx          # tag-style input for owners text[] (never comma-joined)
       CategoryFilter.tsx       # campaign-category toggles over the calendar
+      Breadcrumbs.tsx          # URL-derived trail (campaign id segment resolved to name)
+      ConfirmDeleteButton.tsx  # destructive-action guard for cascade deletes
       TimelineView.tsx         # horizontal campaign bars, deliverable ticks (Phase 3)
-      RangeFilter.tsx          # day/week/month/quarter/year/all, overlap semantics (Phase 2)
-      StatusFilter.tsx         # campaign + deliverable status filters (Phase 2)
+      RangeFilter.tsx          # day/week/month/quarter/year/all, overlap semantics
+      StatusFilter.tsx         # generic status pills (campaign + deliverable lists)
       ScheduleEmailDialog.tsx  # attach + schedule email via schedule-email (mounted in __root)
       UpcomingSends.tsx        # scheduled email_jobs panel (read-only)
       ui/                      # shadcn primitives
@@ -28,18 +29,18 @@ marketing-calendar/
       auth.ts                  # ensureSession() — anonymous sign-in
       database.types.ts        # hand-written types mirroring the migrations
       schemas.ts               # Zod schemas + form→payload mappers
-      campaigns.ts             # TanStack Query hooks for campaigns (overlap-range queries: Phase 2)
+      campaigns.ts             # campaign hooks + rangeBounds + overlap-range list query
       deliverables.ts          # deliverable hooks + monthGridRange + derived completionPercent
       templates.ts             # template hooks + create-from-template (Phase 5)
       emailJobs.ts             # useScheduleEmail (invoke fn), useUpcomingSends
-      uiStore.ts               # Zustand UI state (month, category filter, schedule dialog)
+      uiStore.ts               # Zustand UI state (month, category + range + status filters, schedule dialog)
       queryClient.ts
       utils.ts
     router.tsx                 # code-based TanStack Router (all routes registered here)
     routes/                    # page pattern: every page is a real URL (deep-linkable)
-      __root.tsx               # app shell + nav (URL breadcrumbs land in Phase 2)
+      __root.tsx               # app shell: nav + URL-derived breadcrumbs + schedule dialog
       index.tsx                # calendar page
-      campaigns.index.tsx      # /campaigns — list (filters land in Phase 2)
+      campaigns.index.tsx      # /campaigns — list with range (overlap) + status filters
       campaigns.new.tsx        # /campaigns/new — create form (page, not overlay)
       campaigns.$id.tsx        # /campaigns/:id — deliverables, completion %, edit, delete
       campaigns.$id.deliverables.new.tsx              # /campaigns/:id/deliverables/new

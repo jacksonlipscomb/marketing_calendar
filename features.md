@@ -31,9 +31,17 @@ touched prod — the destructive migration applies only when the owner merges.
 
 **Cut line:** none. This phase is the floor; nothing later ships without it.
 
-## Phase 2 — Core UI: lists, filters, calendar, pages — **status: not started**
+## Phase 2 — Core UI: lists, filters, calendar, pages — **status: built, in owner review (branch `phase2-core-ui`)**
 
 Makes the model legible. All read-path work, low risk.
+
+Verified so far (2026-06-11): lint/typecheck/build green; the overlap query's
+exact conditions checked against the local DB — a campaign straddling the Q2/Q3
+boundary returns in both quarter windows, range+status combine, and a week
+window includes overlapping long campaigns while excluding not-yet-started ones.
+Completion % is computed from the unfiltered deliverable list by construction.
+**Not yet exercised:** browser click-through. Nothing built here was cut — both
+cut-line items (day/year ranges, breadcrumbs) shipped.
 
 - Campaign list with **range filter** (day / week / month / quarter / year / all) using overlap semantics — a campaign appears in every range it overlaps (`start_date <= range_end AND end_date >= range_start`).
 - **Status filter** on the campaign list (planned / in-progress / done), combinable with the range filter.

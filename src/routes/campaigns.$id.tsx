@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { Link, useNavigate, useParams } from "@tanstack/react-router"
 import { format } from "date-fns"
 import { Mail } from "lucide-react"
@@ -6,6 +7,11 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { CampaignForm } from "@/components/CampaignForm"
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton"
+import { StatusFilter } from "@/components/StatusFilter"
+import {
+  DELIVERABLE_STATUSES,
+  type DeliverableStatus,
+} from "@/lib/database.types"
 import { campaignPayload } from "@/lib/schemas"
 import {
   useCampaign,
@@ -29,6 +35,10 @@ export function CampaignDetailPage() {
   const updateCampaign = useUpdateCampaign()
   const deleteCampaign = useDeleteCampaign()
   const openScheduleEmail = useUiStore((s) => s.openScheduleEmail)
+  // Page-local: only this list cares, unlike the campaign filters in uiStore.
+  const [statusFilter, setStatusFilter] = useState<DeliverableStatus | "all">(
+    "all",
+  )
 
   if (isLoading) {
     return <p className="text-muted-foreground text-sm">Loading campaign…</p>
@@ -48,7 +58,13 @@ export function CampaignDetailPage() {
   }
 
   const deliverables = deliverablesQuery.data ?? []
+  // Completion % is always over ALL deliverables — the status filter below
+  // changes what's listed, never the denominator.
   const percent = completionPercent(deliverables)
+  const visibleDeliverables =
+    statusFilter === "all"
+      ? deliverables
+      : deliverables.filter((d) => d.status === statusFilter)
 
   async function onDelete() {
     await deleteCampaign.mutateAsync(campaign!.id)
@@ -87,6 +103,12 @@ export function CampaignDetailPage() {
           </Button>
         </div>
 
+        <StatusFilter
+          options={DELIVERABLE_STATUSES}
+          value={statusFilter}
+          onChange={setStatusFilter}
+        />
+
         {deliverablesQuery.error && (
           <p className="text-destructive text-sm">
             {(deliverablesQuery.error as Error).message}
@@ -101,9 +123,16 @@ export function CampaignDetailPage() {
             work.
           </p>
         )}
+        {!deliverablesQuery.isLoading &&
+          deliverables.length > 0 &&
+          visibleDeliverables.length === 0 && (
+            <p className="text-muted-foreground text-sm">
+              No deliverables with this status.
+            </p>
+          )}
 
         <div className="grid gap-2">
-          {deliverables.map((d) => (
+          {visibleDeliverables.map((d) => (
             <div
               key={d.id}
               className="flex items-center gap-3 rounded-lg border p-3"

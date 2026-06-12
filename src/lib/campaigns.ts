@@ -1,22 +1,94 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import {
+  endOfDay,
+  endOfMonth,
+  endOfQuarter,
+  endOfWeek,
+  endOfYear,
+  format,
+  startOfDay,
+  startOfMonth,
+  startOfQuarter,
+  startOfWeek,
+  startOfYear,
+} from "date-fns"
 import { supabase } from "./supabase"
 import type {
   CampaignInsert,
   CampaignRow,
+  CampaignStatus,
   CampaignUpdate,
 } from "./database.types"
 
+const fmt = (d: Date) => format(d, "yyyy-MM-dd")
+
+// Range filter keys for the campaign list (and, in Phase 3, the timeline zoom).
+export const RANGE_KEYS = [
+  "day",
+  "week",
+  "month",
+  "quarter",
+  "year",
+  "all",
+] as const
+export type RangeKey = (typeof RANGE_KEYS)[number]
+
+export type CampaignStatusFilter = CampaignStatus | "all"
+
+// Bounds of "the current <range>" anchored at `today`; null means unbounded.
+// "Week" is Sunday-start (date-fns default) on purpose, matching the calendar
+// grid's Sun–Sat rows. If ops thinking ever shifts to Monday-start weeks,
+// change both together (here via { weekStartsOn: 1 }, and the calendar grid).
+export function rangeBounds(
+  range: RangeKey,
+  today: Date = new Date(),
+): { start: Date; end: Date } | null {
+  switch (range) {
+    case "day":
+      return { start: startOfDay(today), end: endOfDay(today) }
+    case "week":
+      return { start: startOfWeek(today), end: endOfWeek(today) }
+    case "month":
+      return { start: startOfMonth(today), end: endOfMonth(today) }
+    case "quarter":
+      return { start: startOfQuarter(today), end: endOfQuarter(today) }
+    case "year":
+      return { start: startOfYear(today), end: endOfYear(today) }
+    case "all":
+      return null
+  }
+}
+
 // Campaigns are read/written directly by the client (RLS-governed).
-// Phase 1 keeps the list unfiltered; the range (overlap) + status filters land
-// in Phase 2 on top of these same hooks.
-export function useCampaigns() {
+// Range filtering uses OVERLAP semantics, bounds inclusive (roadmap.md):
+// a campaign is in range when start_date <= range_end AND end_date >= range_start,
+// so a campaign straddling a boundary appears in both adjacent ranges. Do not
+// "fix" this to containment — that silently drops straddling campaigns.
+export function useCampaigns(
+  range: RangeKey = "all",
+  status: CampaignStatusFilter = "all",
+) {
+  const bounds = rangeBounds(range)
   return useQuery({
-    queryKey: ["campaigns"],
+    queryKey: [
+      "campaigns",
+      "list",
+      bounds ? `${fmt(bounds.start)}..${fmt(bounds.end)}` : "all",
+      status,
+    ],
     queryFn: async (): Promise<CampaignRow[]> => {
-      const { data, error } = await supabase
-        .from("campaigns")
-        .select("*")
-        .order("start_date", { ascending: true })
+      let query = supabase.from("campaigns").select("*")
+      if (bounds) {
+        query = query
+          .lte("start_date", fmt(bounds.end))
+          .gte("end_date", fmt(bounds.start))
+      }
+      if (status !== "all") {
+        query = query.eq("status", status)
+      }
+      const { data, error } = await query.order("start_date", {
+        ascending: true,
+      })
       if (error) throw new Error(error.message)
       return data ?? []
     },

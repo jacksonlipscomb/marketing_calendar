@@ -4,6 +4,7 @@ import {
   CAMPAIGN_CATEGORIES,
   type CampaignCategory,
 } from "./database.types"
+import type { CampaignStatusFilter, RangeKey } from "./campaigns"
 
 // What the schedule-email dialog needs to know about its target deliverable:
 // the id for the request, the title for the dialog copy.
@@ -19,6 +20,13 @@ type UiState = {
   // Category filter — which campaign categories are currently shown.
   activeCategories: CampaignCategory[]
   toggleCategory: (category: CampaignCategory) => void
+
+  // Campaign list filters. Global (not page-local) so the Phase 3 timeline can
+  // tie its zoom to the same range selection (features.md).
+  campaignRange: RangeKey
+  setCampaignRange: (range: RangeKey) => void
+  campaignStatus: CampaignStatusFilter
+  setCampaignStatus: (status: CampaignStatusFilter) => void
 
   // Schedule-email dialog for a given deliverable. Campaign/deliverable
   // create+edit are pages (page pattern), not dialogs, so no form state here.
@@ -40,6 +48,11 @@ export const useUiStore = create<UiState>((set) => ({
         ? s.activeCategories.filter((c) => c !== category)
         : [...s.activeCategories, category],
     })),
+
+  campaignRange: "all",
+  setCampaignRange: (range) => set({ campaignRange: range }),
+  campaignStatus: "all",
+  setCampaignStatus: (status) => set({ campaignStatus: status }),
 
   scheduleDialog: { open: false, deliverable: null },
   openScheduleEmail: (deliverable) =>
