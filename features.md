@@ -81,9 +81,24 @@ long names truncate inside the bar; toggling a category hides its bars and
 chips together; clicking a bar and pressing Enter on a focused bar both
 navigate to the right campaign. lint/typecheck/build green.
 
-## Phase 4 — Reminder emails (scheduled send path) — **status: not started**
+## Phase 4 — Reminder emails (scheduled send path) — **status: built, in owner review (branch `phase4-reminders`)**
 
 Proves the edge function is the backbone, not a one-off. Full contract in roadmap.md → `send-reminders`.
+
+Verified 2026-06-12 against the local stack (function served with a local
+`CRON_SECRET`): 405 on GET; 401 on missing/wrong `x-cron-secret`; 500 fail
+closed when `CRON_SECRET` unset (and the request reached the function without a
+JWT, confirming the per-function `verify_jwt = false`). Selection exact: of
+five seeded deliverables, only the in-window/opted-in/unreminded one was due —
+opt-out campaign, already-reminded, and out-of-window all excluded. The
+reminder row named the owners in the subject and went only to the allowlisted
+recipient; with no local Resend key it recorded `failed` + error and left
+`reminded_at` null, so the second run retried it (by design); setting
+`reminded_at` (simulating a prior success) made the next run report `due: 0`.
+**Not verified, prod-only:** the real Resend success path (`sent` +
+`provider_message_id` + the function setting `reminded_at`) and the actual
+pg_cron→pg_net firing — both require the one-time prod setup below and a
+manual invocation after deploy.
 
 - `send-reminders` function: cron-secret auth (`x-cron-secret` vs `CRON_SECRET`, fail closed, `verify_jwt` off), find deliverables due within `REMINDER_LEAD_DAYS` (default 3) with `reminded_at is null` and campaign `reminders_enabled = true`, send via Resend, write `email_jobs` rows, set `reminded_at` only on success.
 - Recipient rule: reminders deliver **only to `ALLOWED_RECIPIENT_EMAIL`**, owners named in the content (owners are display names; the test sender can't deliver elsewhere anyway).

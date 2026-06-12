@@ -169,9 +169,9 @@ Two workflows, same shape as the PoC. CI gates merges; deploy runs after merge.
 
 Runs on pull requests: `npm ci`, lint, typecheck, `npm test --if-present`, build.
 
-### `.github/workflows/deploy.yml` — one change: deploy both functions
+### `.github/workflows/deploy.yml` — deploys both functions
 
-This is the **target state**. The `Deploy send-reminders` step is added in Phase 4, alongside the function itself — do not add it to CI earlier, or every merge to main fails on deploying a function directory that does not exist yet.
+The `Deploy send-reminders` step landed with Phase 4, alongside the function itself.
 
 ```yaml
 name: Deploy
@@ -201,7 +201,7 @@ jobs:
         run: supabase functions deploy schedule-email --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      - name: Deploy send-reminders        # added in Phase 4
+      - name: Deploy send-reminders        # caller is Postgres; header auth replaces JWT
         run: supabase functions deploy send-reminders --no-verify-jwt --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}

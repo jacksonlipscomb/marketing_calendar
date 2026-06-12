@@ -427,3 +427,12 @@ entrypoint = "./functions/schedule-email/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/schedule-email/*.html" ]
+
+[functions.send-reminders]
+enabled = true
+# JWT verification OFF: the caller is Postgres (pg_cron via pg_net), not a user
+# session. The x-cron-secret header check inside the function replaces the JWT
+# check (CLAUDE.md invariant; structure.md → Edge functions). Mirrors the
+# --no-verify-jwt flag used on hosted deploys.
+verify_jwt = false
+entrypoint = "./functions/send-reminders/index.ts"
