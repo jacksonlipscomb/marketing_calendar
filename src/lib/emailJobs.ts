@@ -3,8 +3,8 @@ import { supabase } from "./supabase"
 import type { EmailJobRow } from "./database.types"
 import type { ScheduleEmailRequest } from "./schemas"
 
-// Feature 5: upcoming sends. Read-only list of email_jobs still in `scheduled`
-// status, soonest first, with the parent event's title embedded. Reads only —
+// Upcoming sends. Read-only list of email_jobs still in `scheduled` status,
+// soonest first, with the parent deliverable's title embedded. Reads only —
 // governed by the email_jobs SELECT policy + grant; never writes.
 export type UpcomingSend = {
   id: string
@@ -12,7 +12,7 @@ export type UpcomingSend = {
   recipient: string
   scheduled_for: string | null
   status: EmailJobRow["status"]
-  events: { title: string } | null
+  deliverables: { title: string } | null
 }
 
 export function useUpcomingSends() {
@@ -21,7 +21,9 @@ export function useUpcomingSends() {
     queryFn: async (): Promise<UpcomingSend[]> => {
       const { data, error } = await supabase
         .from("email_jobs")
-        .select("id, subject, recipient, scheduled_for, status, events(title)")
+        .select(
+          "id, subject, recipient, scheduled_for, status, deliverables(title)",
+        )
         .eq("status", "scheduled")
         .order("scheduled_for", { ascending: true })
         .returns<UpcomingSend[]>()
@@ -31,8 +33,8 @@ export function useUpcomingSends() {
   })
 }
 
-// Feature 3: the only path that writes `email_jobs`. Calls the edge function, which
-// performs the privileged service-role write. The client never inserts directly.
+// The only client path that touches `email_jobs` writes. Calls the edge function,
+// which performs the privileged service-role write. The client never inserts directly.
 export function useScheduleEmail() {
   const qc = useQueryClient()
   return useMutation({

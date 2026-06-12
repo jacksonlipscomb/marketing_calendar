@@ -2,9 +2,10 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './database.types';
 
 // Browser Supabase client. Uses the anon key, so every request is governed by
-// Row Level Security (see roadmap.md). The client can read/write `events` and
-// read `email_jobs`; it has no policy to write `email_jobs` by design — those
-// writes go only through the `schedule-email` edge function (service role).
+// Row Level Security (see roadmap.md). The client can read/write `campaigns`
+// and `deliverables` and read `email_jobs`; it has no policy to write
+// `email_jobs` by design — those writes go only through the edge functions
+// (service role).
 //
 // Both values are public-safe and injected at build time from the environment
 // (see .env.example). They must never carry the service-role or provider keys.

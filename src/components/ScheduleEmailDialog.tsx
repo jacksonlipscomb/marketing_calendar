@@ -25,7 +25,7 @@ import type { EmailJobRow } from "@/lib/database.types"
 
 export function ScheduleEmailDialog() {
   const { scheduleDialog, closeScheduleDialog } = useUiStore()
-  const event = scheduleDialog.event
+  const deliverable = scheduleDialog.deliverable
   const schedule = useScheduleEmail()
   const [result, setResult] = useState<EmailJobRow | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
@@ -45,7 +45,7 @@ export function ScheduleEmailDialog() {
   }
 
   async function onSubmit(values: ScheduleEmailFormValues) {
-    if (!event) return
+    if (!deliverable) return
     setErrorMsg(null)
     setResult(null)
     // datetime-local (local, no tz) -> full ISO with offset, or null for send-now.
@@ -54,7 +54,7 @@ export function ScheduleEmailDialog() {
       : null
     try {
       const row = await schedule.mutateAsync({
-        event_id: event.id,
+        deliverable_id: deliverable.id,
         subject: values.subject,
         body: values.body,
         recipient: OWNER_EMAIL,
@@ -72,8 +72,8 @@ export function ScheduleEmailDialog() {
         <DialogHeader>
           <DialogTitle>Schedule email</DialogTitle>
           <DialogDescription>
-            {event
-              ? `Attach an email to "${event.title}". Sent through the schedule-email edge function.`
+            {deliverable
+              ? `Attach an email to "${deliverable.title}". Sent through the schedule-email edge function.`
               : null}
           </DialogDescription>
         </DialogHeader>
@@ -117,7 +117,7 @@ export function ScheduleEmailDialog() {
             />
             <p className="text-muted-foreground text-xs">
               Leave empty to send now. A future time is saved as{" "}
-              <strong>scheduled / queued — not auto-sent in this PoC</strong>.
+              <strong>scheduled / queued — not auto-sent</strong>.
             </p>
           </div>
 

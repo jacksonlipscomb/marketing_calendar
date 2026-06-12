@@ -2,21 +2,24 @@
 
 Covers repo layout, Supabase setup (including pg_cron and Vault), Cloudflare Pages, and CI/CD. The data model and function contracts live in `roadmap.md`; feature sequencing lives in `features.md`. Vite + React + TypeScript frontend.
 
-## Repo layout (target)
+## Repo layout
 
-The layout below is the target state; components and hooks appear as their phases land (see `features.md`). PoC files being replaced (`EventDialog`, `events.ts`, etc.) are removed in the phase that replaces them, not left dead.
+Entries marked with a phase are future state; everything else exists as of Phase 1. PoC files that were replaced (`EventDialog`, `events.ts`) are gone, not left dead.
 
 ```
 marketing-calendar/
   src/
     components/
-      CalendarMonth.tsx        # month grid (date-fns); renders deliverables, same-date wrapping
+      CalendarMonth.tsx        # month grid (date-fns); renders deliverables by due date
+                               #   (same-date wrapping lands in Phase 2)
+      CampaignForm.tsx         # shared create/edit campaign form (page pattern)
+      DeliverableForm.tsx      # shared create/edit deliverable form (page pattern)
+      OwnersInput.tsx          # tag-style input for owners text[] (never comma-joined)
+      CategoryFilter.tsx       # campaign-category toggles over the calendar
       TimelineView.tsx         # horizontal campaign bars, deliverable ticks (Phase 3)
-      CampaignList.tsx         # campaign list w/ range + status filters
-      DeliverableList.tsx      # deliverables within a campaign, status filter
-      RangeFilter.tsx          # day/week/month/quarter/year/all (overlap semantics)
-      StatusFilter.tsx         # campaign + deliverable status filters
-      ScheduleEmailDialog.tsx  # attach + schedule email via schedule-email (re-pointed to deliverables)
+      RangeFilter.tsx          # day/week/month/quarter/year/all, overlap semantics (Phase 2)
+      StatusFilter.tsx         # campaign + deliverable status filters (Phase 2)
+      ScheduleEmailDialog.tsx  # attach + schedule email via schedule-email (mounted in __root)
       UpcomingSends.tsx        # scheduled email_jobs panel (read-only)
       ui/                      # shadcn primitives
     lib/
@@ -24,22 +27,23 @@ marketing-calendar/
       env.ts                   # validated public env (VITE_OWNER_EMAIL, fail-fast)
       auth.ts                  # ensureSession() — anonymous sign-in
       database.types.ts        # hand-written types mirroring the migrations
-      schemas.ts               # Zod schemas (campaign/deliverable forms, schedule-email request)
-      campaigns.ts             # TanStack Query hooks for campaigns (incl. overlap-range queries)
-      deliverables.ts          # TanStack Query hooks for deliverables (+ derived completion %)
+      schemas.ts               # Zod schemas + form→payload mappers
+      campaigns.ts             # TanStack Query hooks for campaigns (overlap-range queries: Phase 2)
+      deliverables.ts          # deliverable hooks + monthGridRange + derived completionPercent
       templates.ts             # template hooks + create-from-template (Phase 5)
       emailJobs.ts             # useScheduleEmail (invoke fn), useUpcomingSends
-      uiStore.ts               # Zustand UI state (range, filters, dialogs)
+      uiStore.ts               # Zustand UI state (month, category filter, schedule dialog)
       queryClient.ts
       utils.ts
-    router.tsx                 # code-based TanStack Router
-    routes/                    # page pattern: every page is a real URL (deep-linkable, breadcrumbed)
-      __root.tsx               # app shell + breadcrumbs from the URL path
+    router.tsx                 # code-based TanStack Router (all routes registered here)
+    routes/                    # page pattern: every page is a real URL (deep-linkable)
+      __root.tsx               # app shell + nav (URL breadcrumbs land in Phase 2)
       index.tsx                # calendar page
-      campaigns.index.tsx      # /campaigns — list with filters
+      campaigns.index.tsx      # /campaigns — list (filters land in Phase 2)
       campaigns.new.tsx        # /campaigns/new — create form (page, not overlay)
-      campaigns.$id.tsx        # /campaigns/:id — detail: deliverables, completion %, status
-      campaigns.$id.deliverables.new.tsx  # /campaigns/:id/deliverables/new
+      campaigns.$id.tsx        # /campaigns/:id — deliverables, completion %, edit, delete
+      campaigns.$id.deliverables.new.tsx              # /campaigns/:id/deliverables/new
+      campaigns.$id.deliverables.$deliverableId.tsx   # …/deliverables/:id — edit + delete
     index.css                  # Tailwind v4 entry (@import "tailwindcss") + theme
   public/
     _redirects                 # SPA fallback: /* /index.html 200
@@ -54,7 +58,7 @@ marketing-calendar/
       send-reminders/index.ts  # daily reminder path (Phase 4)
   .github/workflows/
     ci.yml                     # pull requests: lint, typecheck, test, build
-    deploy.yml                 # push to main: migrations, both functions, frontend
+    deploy.yml                 # push to main: migrations, functions, frontend
   components.json
   .env.example
   package.json
