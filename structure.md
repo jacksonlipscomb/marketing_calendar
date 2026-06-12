@@ -1,133 +1,172 @@
-# Marketing Calendar PoC — Structure and Deployment
+# Marketing Calendar — Structure and Deployment (campaign/deliverable rewrite)
 
-Covers repo layout, Supabase setup, Cloudflare Pages, and CI/CD. The data model and feature plan live in `roadmap.md`. Assumes a Vite + React + TypeScript frontend.
+Covers repo layout, Supabase setup (including pg_cron and Vault), Cloudflare Pages, and CI/CD. The data model and function contracts live in `roadmap.md`; feature sequencing lives in `features.md`. Vite + React + TypeScript frontend.
 
-## Repo layout
+## Repo layout (target)
+
+The layout below is the target state; components and hooks appear as their phases land (see `features.md`). PoC files being replaced (`EventDialog`, `events.ts`, etc.) are removed in the phase that replaces them, not left dead.
 
 ```
 marketing-calendar/
-  src/                       # React app
+  src/
     components/
-      CalendarMonth.tsx      # month grid (date-fns), category color chips (feat 1)
-      EventDialog.tsx        # create/edit/delete event (feat 2)
-      ScheduleEmailDialog.tsx# attach + schedule email via the function (feat 3)
-      CategoryFilter.tsx     # filter by category (feat 4)
-      UpcomingSends.tsx      # scheduled email_jobs panel (feat 5, read-only)
-      ui/                    # shadcn primitives (button, dialog, select, ...)
+      CalendarMonth.tsx        # month grid (date-fns); renders deliverables, same-date wrapping
+      TimelineView.tsx         # horizontal campaign bars, deliverable ticks (Phase 3)
+      CampaignList.tsx         # campaign list w/ range + status filters
+      DeliverableList.tsx      # deliverables within a campaign, status filter
+      RangeFilter.tsx          # day/week/month/quarter/year/all (overlap semantics)
+      StatusFilter.tsx         # campaign + deliverable status filters
+      ScheduleEmailDialog.tsx  # attach + schedule email via schedule-email (re-pointed to deliverables)
+      UpcomingSends.tsx        # scheduled email_jobs panel (read-only)
+      ui/                      # shadcn primitives
     lib/
-      supabase.ts            # browser client (anon/publishable key, RLS-governed)
-      env.ts                 # validated public env (VITE_OWNER_EMAIL, fail-fast)
-      auth.ts                # ensureSession() — anonymous sign-in
-      database.types.ts      # hand-written types mirroring the migrations
-      schemas.ts             # Zod schemas (event form, schedule-email request)
-      events.ts              # TanStack Query hooks for events
-      emailJobs.ts           # useScheduleEmail (invoke fn), useUpcomingSends
-      uiStore.ts             # Zustand UI state (month, filter, dialogs)
-      queryClient.ts         # TanStack Query client
-      utils.ts               # cn() helper for shadcn
-    router.tsx               # code-based TanStack Router
-    routes/
-      __root.tsx             # app shell
-      index.tsx              # calendar page composing the features
-    index.css                # Tailwind v4 entry (@import "tailwindcss") + theme
+      supabase.ts              # browser client (anon/publishable key, RLS-governed)
+      env.ts                   # validated public env (VITE_OWNER_EMAIL, fail-fast)
+      auth.ts                  # ensureSession() — anonymous sign-in
+      database.types.ts        # hand-written types mirroring the migrations
+      schemas.ts               # Zod schemas (campaign/deliverable forms, schedule-email request)
+      campaigns.ts             # TanStack Query hooks for campaigns (incl. overlap-range queries)
+      deliverables.ts          # TanStack Query hooks for deliverables (+ derived completion %)
+      templates.ts             # template hooks + create-from-template (Phase 5)
+      emailJobs.ts             # useScheduleEmail (invoke fn), useUpcomingSends
+      uiStore.ts               # Zustand UI state (range, filters, dialogs)
+      queryClient.ts
+      utils.ts
+    router.tsx                 # code-based TanStack Router
+    routes/                    # page pattern: every page is a real URL (deep-linkable, breadcrumbed)
+      __root.tsx               # app shell + breadcrumbs from the URL path
+      index.tsx                # calendar page
+      campaigns.index.tsx      # /campaigns — list with filters
+      campaigns.new.tsx        # /campaigns/new — create form (page, not overlay)
+      campaigns.$id.tsx        # /campaigns/:id — detail: deliverables, completion %, status
+      campaigns.$id.deliverables.new.tsx  # /campaigns/:id/deliverables/new
+    index.css                  # Tailwind v4 entry (@import "tailwindcss") + theme
   public/
-    _redirects               # SPA fallback for client-side routing (see Cloudflare section)
+    _redirects                 # SPA fallback: /* /index.html 200
   supabase/
-    config.toml              # verify_jwt=true, anonymous sign-ins enabled
+    config.toml                # verify_jwt default true; per-function override for send-reminders
     migrations/
-      0001_init.sql          # enums, tables, indexes, RLS
-      0002_grants.sql        # table grants -> authenticated
-      0003_grants_service_role.sql  # table grants -> service_role
+      0001..0003               # PoC migrations (already applied; never edit applied migrations)
+      0004_reset_campaigns.sql # DESTRUCTIVE reset: drops PoC tables, creates campaign model + grants
+      000N_templates.sql       # Phase 5: templates tables + grants
     functions/
-      schedule-email/
-        index.ts             # the edge function (npm: imports, no deno.json)
-  .github/
-    workflows/
-      ci.yml                 # runs on pull requests
-      deploy.yml             # runs on push to main
-  components.json            # shadcn config (Tailwind v4, new-york)
+      schedule-email/index.ts  # manual send path (re-pointed to deliverable_id)
+      send-reminders/index.ts  # daily reminder path (Phase 4)
+  .github/workflows/
+    ci.yml                     # pull requests: lint, typecheck, test, build
+    deploy.yml                 # push to main: migrations, both functions, frontend
+  components.json
   .env.example
   package.json
-  vite.config.ts             # react + @tailwindcss/vite + @ alias
+  vite.config.ts
   tsconfig.json
 ```
 
+Routing note: the page pattern exists so every form and detail view is deep-linkable and the URL path drives breadcrumbs. Overlays remain for quick actions (e.g. scheduling an email); creation/detail flows get real routes.
+
 ## Supabase setup
 
-The CLI is a dev dependency, so all local commands use `npx supabase`.
+Same project as the PoC; the CLI is a dev dependency (`npx supabase`).
 
-1. Create a Supabase project. Note the project ref, the URL, and the anon/publishable key.
-2. **Enable "Allow anonymous sign-ins"** (dashboard → Auth → Sign In / Providers). The client signs in anonymously to satisfy RLS `to authenticated`; without it every query is denied.
-3. Migrations live in `supabase/migrations/` — `0001_init.sql` (schema + RLS), `0002_grants.sql` (grants to `authenticated`), `0003_grants_service_role.sql` (grants to `service_role`). Apply all with `npx supabase db push` against the linked project. The grants are **required**: hosted projects don't auto-grant table privileges for migration-created tables, and RLS only filters on top of grants (missing grants → `permission denied for table ...`). See roadmap.md → Data model → Grants.
-4. Edge function lives at `supabase/functions/schedule-email/index.ts`. Deploy with `npx supabase functions deploy schedule-email`.
-5. Set the edge function secrets (not in Vault):
-   ```
-   npx supabase secrets set RESEND_API_KEY=...
-   npx supabase secrets set ALLOWED_RECIPIENT_EMAIL=...   # the recipient allowlist
-   ```
-   The function reads them via `Deno.env.get`. The service role key is auto-injected as `SUPABASE_SERVICE_ROLE_KEY`, so it is never stored anywhere by you. `ALLOWED_RECIPIENT_EMAIL` must equal your Resend account email (the shared test sender only delivers to that address) and the client's `VITE_OWNER_EMAIL`.
+### Migrations
 
-### Why function secrets and not Vault
+Migrations `0001`–`0003` are the applied PoC schema. The rewrite starts with `0004_reset_campaigns.sql`, which is **destructive**: it drops `email_jobs` (FK holder) then `events` then the old enums, and creates the campaign/deliverable schema (see `roadmap.md`). Because `deploy.yml` runs `supabase db push` on merge to main, **merging that migration drops the PoC tables on the live project** — the PR must say so and the owner approves it knowing that.
 
-Vault is Postgres-side, decrypted inside SQL, and is the right tool when the database itself needs a secret (a `pg_cron` job or a trigger calling out through `pg_net`). This PoC sends from the Deno edge function, which calls the provider directly, so the key belongs in edge function secrets and is read from the Deno environment. Using Vault here would add a layer the architecture does not use.
+Every migration that creates a table includes its grants in the same file (`authenticated` + `service_role`, never `anon`). Hosted projects don't auto-grant; missing grants surface as `permission denied for table ...` before RLS runs.
+
+### Edge functions
+
+Two functions, deployed independently:
+
+```
+npx supabase functions deploy schedule-email
+npx supabase functions deploy send-reminders --no-verify-jwt
+```
+
+`send-reminders` runs with JWT verification off because its caller is Postgres (pg_cron via pg_net), not a user session; the `x-cron-secret` header check replaces the JWT check (contract in `roadmap.md`). Mirror this in `supabase/config.toml` for the local stack:
+
+```toml
+[functions.send-reminders]
+verify_jwt = false
+```
+
+### Function secrets
+
+```
+npx supabase secrets set RESEND_API_KEY=...            # provider key (never commit it)
+npx supabase secrets set ALLOWED_RECIPIENT_EMAIL=...   # server-side recipient allowlist
+npx supabase secrets set CRON_SECRET=...               # verifier half of the cron auth secret
+npx supabase secrets set REMINDER_LEAD_DAYS=3          # reminder lead window (optional; default 3)
+```
+
+`ALLOWED_RECIPIENT_EMAIL` must equal the Resend account email (the shared test sender only delivers there) and the client's `VITE_OWNER_EMAIL`. The service role key is auto-injected as `SUPABASE_SERVICE_ROLE_KEY`.
+
+### pg_cron + Vault (the scheduled reminder path) — one-time SQL setup
+
+This is dashboard/SQL setup, not pipeline-managed. Run in the SQL editor (or a migration, but the Vault secret value itself must never be committed, so the secret creation is always manual):
+
+```sql
+-- 1. Enable extensions (dashboard → Database → Extensions, or:)
+create extension if not exists pg_cron;
+create extension if not exists pg_net;
+
+-- 2. Store the caller half of the cron secret in Vault (same value as CRON_SECRET above)
+select vault.create_secret('<the-secret-value>', 'cron_secret');
+
+-- 3. Schedule the daily call
+select cron.schedule(
+  'send-reminders-daily',
+  '0 14 * * *',          -- 14:00 UTC daily; pick an hour that suits demos
+  $$
+  select net.http_post(
+    url     := 'https://<project-ref>.supabase.co/functions/v1/send-reminders',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'x-cron-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'cron_secret')
+    ),
+    body    := '{}'::jsonb
+  );
+  $$
+);
+```
+
+Observability: cron run history is in `cron.job_run_details`; the HTTP response (including a 401 from a secret mismatch) is in `net._http_response`; send-level results are in the function logs and `email_jobs`. pg_net does not retry — a failed run is retried structurally the next day because `reminded_at` is only set on success.
+
+### Why two secret homes (the rule, sharpened)
+
+| Secret consumer | Home | Why |
+| --- | --- | --- |
+| Deno edge function (calls the provider, verifies callers) | **Function secrets** (`Deno.env.get`) | The function runtime is the only thing that needs it. `RESEND_API_KEY`, `ALLOWED_RECIPIENT_EMAIL`, `CRON_SECRET`, `REMINDER_LEAD_DAYS`. |
+| Postgres itself (pg_cron SQL calling out via pg_net) | **Vault** (`vault.decrypted_secrets`) | Vault is decrypted inside SQL — this is the case it exists for. Only the caller half of the cron secret. |
+
+The PoC used only the first row. The cron secret is deliberately dual-homed: Vault for the SQL caller, function secrets for the verifier. Rotation: update both back-to-back between daily runs (single-value comparison, no overlap; a run hitting the gap 401s harmlessly and the next run catches up). Never put `RESEND_API_KEY` in Vault — Postgres never calls Resend.
+
+### Dashboard checklist (one-time)
+
+- "Allow anonymous sign-ins" stays enabled (Auth → Sign In / Providers) — without it every RLS-governed query is denied.
+- pg_cron + pg_net extensions enabled.
+- Vault secret `cron_secret` created; cron job scheduled.
 
 ## Cloudflare Pages
 
-The frontend is a static build deployed to Cloudflare Pages.
+Unchanged from the PoC:
 
-Build settings:
-- Build command: `npm run build`
-- Output directory: `dist`
-- Root directory: repo root
-- Build-time environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_OWNER_EMAIL` (all public-safe). `VITE_OWNER_EMAIL` is required at build time — the app fails fast if it is missing (see `src/lib/env.ts`).
-
-Client-side routing fallback. TanStack Router handles routes in the browser, so a direct hit to a deep link must serve `index.html` rather than 404. Add `public/_redirects`:
-
-```
-/*    /index.html   200
-```
-
-Pick one deploy path for the frontend, do not run both or you will double-deploy:
-- Option A (used below): deploy from GitHub Actions with Wrangler. All deploy logic stays in one pipeline.
-- Option B: Cloudflare's native Git integration. Point Pages at the repo, set the build settings and env vars in the Cloudflare dashboard, and remove the frontend job from `deploy.yml`. Simpler, fewer GitHub secrets, but the deploy story is split across two systems.
-
-**Settled (2026-06-11): Option A.** The Git integration that was briefly connected
-has been disconnected. The deployed site is
-https://marketing-calendar-e7w.pages.dev (Cloudflare appended a suffix because the
-bare project name was taken; the Pages project itself is `marketing-calendar`).
+- Build command `npm run build`, output `dist`, root directory repo root.
+- Build-time env vars: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_OWNER_EMAIL` (all public-safe; `VITE_OWNER_EMAIL` is required at build time — `src/lib/env.ts` fails fast).
+- `public/_redirects` serves `index.html` for deep links (`/* /index.html 200`) — now load-bearing for the page pattern (`/campaigns/:id` hit directly must not 404).
+- Deploy path is **Option A (settled)**: GitHub Actions + Wrangler, project `marketing-calendar`, live at https://marketing-calendar-e7w.pages.dev. The Cloudflare Git integration stays disconnected — running both double-deploys.
 
 ## CI/CD pipelines
 
-Two workflows. CI gates merges, deploy runs after merge. Edge functions deploy to Supabase, frontend deploys to Cloudflare. These are two separate targets and cannot share one deploy step.
+Two workflows, same shape as the PoC. CI gates merges; deploy runs after merge.
 
-### Branch protection
+### `.github/workflows/ci.yml` — unchanged
 
-Protect `main`: require a pull request, require `ci.yml` to pass, disallow direct pushes. Free-tier rulesets require a public repo.
+Runs on pull requests: `npm ci`, lint, typecheck, `npm test --if-present`, build.
 
-### `.github/workflows/ci.yml`
+### `.github/workflows/deploy.yml` — one change: deploy both functions
 
-```yaml
-name: CI
-on:
-  pull_request:
-    branches: [main]
-jobs:
-  build-and-test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm test --if-present
-      - run: npm run build
-```
-
-### `.github/workflows/deploy.yml`
+This is the **target state**. The `Deploy send-reminders` step is added in Phase 4, alongside the function itself — do not add it to CI earlier, or every merge to main fails on deploying a function directory that does not exist yet.
 
 ```yaml
 name: Deploy
@@ -153,8 +192,12 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-      - name: Deploy edge function
+      - name: Deploy schedule-email
         run: supabase functions deploy schedule-email --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      - name: Deploy send-reminders        # added in Phase 4
+        run: supabase functions deploy send-reminders --no-verify-jwt --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
@@ -184,21 +227,22 @@ jobs:
           command: pages deploy dist --project-name=marketing-calendar
 ```
 
-Caution on `supabase db push` in CI: it applies migrations to the linked project on every push to main. Fine for a single-environment PoC. In a real project you would gate this behind environment approvals and never point it at a production database without review. If you would rather keep it manual for the PoC, drop the "Apply migrations" step and run `supabase db push` from your machine.
+Pipeline-managed vs one-time: migrations and both function deploys are pipeline-managed. The cron schedule, the Vault secret, the function secrets, and the dashboard toggles are one-time manual setup (sections above) — the pipeline neither creates nor rotates them.
+
+Caution on `supabase db push` in CI, doubly so now: it applies migrations to the linked project on every push to main, and the reset migration is destructive. Fine for this single-environment project with PR review as the gate; never carry this pattern into a multi-environment project.
 
 ## Secret separation
 
 | Secret | Lives in | Used by | Must never be in |
 | --- | --- | --- | --- |
 | Anon / publishable key | Cloudflare build env, GitHub Actions | Browser client | (public-safe, RLS-governed) |
-| `VITE_OWNER_EMAIL` | Cloudflare build env, GitHub Actions | Browser (locks/prefills recipient field) | (public-safe; display only, not a control) |
-| Service role key | Supabase function runtime (auto-injected) | Edge function | Browser, git, frontend |
-| `RESEND_API_KEY` | Supabase function secrets | Edge function | Browser, git, frontend, GitHub |
-| `ALLOWED_RECIPIENT_EMAIL` | Supabase function secrets | Edge function (recipient allowlist) | (not secret, but kept with the function) |
-| `SUPABASE_ACCESS_TOKEN` | GitHub Actions secret | Deploy job | Runtime, frontend |
-| `SUPABASE_DB_PASSWORD` | GitHub Actions secret | Deploy job (migrations) | Runtime, frontend |
-| `CLOUDFLARE_API_TOKEN` | GitHub Actions secret | Deploy job | Runtime, frontend |
+| `VITE_OWNER_EMAIL` | Cloudflare build env, GitHub Actions | Browser (locks/prefills recipient field) | (public-safe; display only, never a control) |
+| Service role key | Supabase function runtime (auto-injected) | Both edge functions | Browser, git, frontend |
+| `RESEND_API_KEY` | Supabase function secrets | Both edge functions | Browser, git, frontend, GitHub, **Vault** |
+| `ALLOWED_RECIPIENT_EMAIL` | Supabase function secrets | Both functions (recipient allowlist) | (not secret, but it's the authoritative guard — keep it server-side) |
+| `CRON_SECRET` (verifier half) | Supabase function secrets | `send-reminders` (caller auth) | Browser, git, frontend |
+| `cron_secret` (caller half, same value) | **Vault** | pg_cron SQL via pg_net | Browser, git, frontend, function secrets table confusion — see "Why two secret homes" |
+| `REMINDER_LEAD_DAYS` | Supabase function secrets | `send-reminders` | (config, not secret; kept with the function) |
+| `SUPABASE_ACCESS_TOKEN` / `SUPABASE_DB_PASSWORD` / `CLOUDFLARE_API_TOKEN` | GitHub Actions secrets | Deploy jobs | Runtime, frontend |
 
-The single rule that drives the whole table: the email provider key reaches only the edge function. It never touches the browser, the repo, or GitHub. That constraint is the reason the edge function exists. (`ALLOWED_RECIPIENT_EMAIL` isn't itself secret, but it's the authoritative recipient guard, so it lives in the function — never trust the client's `VITE_OWNER_EMAIL` for that.)
-
-> Note: `deploy.yml` passes `VITE_OWNER_EMAIL` to the frontend build (see below), so when you wire up CI deploys remember to add `VITE_OWNER_EMAIL` as a GitHub repo secret alongside the others — otherwise the build bakes in an empty value and the deployed app fails fast at runtime (`src/lib/env.ts`).
+The rule that drives the table is unchanged: the email provider key reaches only the edge functions — never the browser, the repo, GitHub, or Vault. The one new rule: a secret that Postgres itself must read lives in Vault; everything the Deno runtime reads lives in function secrets.
