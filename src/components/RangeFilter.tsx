@@ -12,7 +12,6 @@ const RANGE_LABELS: Record<RangeKey, string> = {
 
 // Time-range filter for the campaign list (overlap semantics — a campaign
 // counts as "in" a range when it overlaps it at all; see lib/campaigns.ts).
-// Phase 3's timeline zoom reads the same uiStore value.
 export function RangeFilter({
   value,
   onChange,

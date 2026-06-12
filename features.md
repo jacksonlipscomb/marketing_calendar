@@ -53,28 +53,33 @@ cut-line items (day/year ranges, breadcrumbs) shipped.
 
 **Cut line:** day/year range options (week/month/quarter/all carry the story); breadcrumb polish.
 
-## Phase 3 — Timeline view — **status: built, in owner review (branch `phase3-timeline`)**
+## Phase 3 — Campaign bars on the calendar — **status: re-built, in owner review (branch `phase3-calendar-bars`)**
 
 The owner's highest-value addition: concurrency at a glance.
 
-Verified so far (2026-06-11): lint/typecheck/build green; the grid column math
-checked against real date-fns at all four zooms (today lands at week col 5,
-month col 11, quarter col 72, year col 162; out-of-window dates clamp; a
-Q2/Q3-straddling bar clips at the window edge). Built as a List/Timeline
-toggle on /campaigns sharing the existing range+status filters; range "day"
-zooms to its week, "all" falls back to quarter (noted in the UI). Neither
-cut-line item was cut — week zoom and tick hover detail both shipped.
-**Not yet exercised:** browser click-through.
+**Re-specced by the owner 2026-06-11** after reviewing the first implementation
+(a standalone List/Timeline toggle on /campaigns, merged in PR #9): campaigns
+render as horizontal bars **on the calendar month view itself**, with
+deliverables listed below the bars inside the day cells — one combined view.
+The standalone timeline and the view toggle were deleted; /campaigns is
+list-only (keeping the Phase 2 range/status filters).
 
-- Horizontal bar per campaign; bar spans the campaign's date range; bar color = category.
-- Deliverable due dates as ticks/points on the bar.
-- Click a bar → campaign detail page.
-- Zoom level ties to the existing range filter (week / month / quarter) rather than introducing a second range control.
-- Custom-built on date-fns + CSS grid, consistent with the no-calendar-library decision.
+- One bar segment per week row a campaign overlaps; multi-week campaigns
+  continue across rows, the continuing side losing its rounding.
+- Bar color = category; overlapping campaigns stack in lanes (greedy packing
+  per week); clicking a bar (or Enter on focus) opens the campaign.
+- The calendar's category toggles filter bars and deliverable chips together.
+- Custom-built on date-fns + CSS (week-row containers, absolutely positioned
+  bars over reserved cell space) — no calendar library.
 
-**Acceptance:** two overlapping campaigns visibly overlap; ticks land on the right dates at every zoom level; clicking navigates to the right campaign.
-
-**Cut line:** week zoom (month + quarter tell the story); tick hover detail.
+**Acceptance & verification (passed 2026-06-11, Playwright against the local
+stack — 11/11 checks + screenshots reviewed):** multi-week campaign renders one
+segment per week with correct columns and clipped edges (incl. at the grid
+boundary); two overlapping campaigns stack in separate lanes; bars sit below
+day numbers and above chips with no overlap; two same-day chips both visible;
+long names truncate inside the bar; toggling a category hides its bars and
+chips together; clicking a bar and pressing Enter on a focused bar both
+navigate to the right campaign. lint/typecheck/build green.
 
 ## Phase 4 — Reminder emails (scheduled send path) — **status: not started**
 

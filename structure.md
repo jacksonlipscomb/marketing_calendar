@@ -10,14 +10,14 @@ Entries marked with a phase are future state; everything else exists as of Phase
 marketing-calendar/
   src/
     components/
-      CalendarMonth.tsx        # month grid (date-fns); deliverables by due date, same-date wrapping
+      CalendarMonth.tsx        # month view: campaign bars (lane-stacked per week row) +
+                               #   deliverables by due date below them, same-date wrapping
       CampaignForm.tsx         # shared create/edit campaign form (page pattern)
       DeliverableForm.tsx      # shared create/edit deliverable form (page pattern)
       OwnersInput.tsx          # tag-style input for owners text[] (never comma-joined)
-      CategoryFilter.tsx       # campaign-category toggles over the calendar
+      CategoryFilter.tsx       # campaign-category toggles (filter bars + chips together)
       Breadcrumbs.tsx          # URL-derived trail (campaign id segment resolved to name)
       ConfirmDeleteButton.tsx  # destructive-action guard for cascade deletes
-      TimelineView.tsx         # horizontal campaign bars + deliverable ticks; zoom = shared range filter
       RangeFilter.tsx          # day/week/month/quarter/year/all, overlap semantics
       StatusFilter.tsx         # generic status pills (campaign + deliverable lists)
       ScheduleEmailDialog.tsx  # attach + schedule email via schedule-email (mounted in __root)
@@ -29,7 +29,7 @@ marketing-calendar/
       auth.ts                  # ensureSession() — anonymous sign-in
       database.types.ts        # hand-written types mirroring the migrations
       schemas.ts               # Zod schemas + form→payload mappers
-      campaigns.ts             # campaign hooks + rangeBounds + overlap-range list query
+      campaigns.ts             # campaign hooks + rangeBounds + overlap queries (list + calendar window)
       deliverables.ts          # deliverable hooks + monthGridRange + derived completionPercent
       templates.ts             # template hooks + create-from-template (Phase 5)
       emailJobs.ts             # useScheduleEmail (invoke fn), useUpcomingSends
@@ -40,7 +40,7 @@ marketing-calendar/
     routes/                    # page pattern: every page is a real URL (deep-linkable)
       __root.tsx               # app shell: nav + URL-derived breadcrumbs + schedule dialog
       index.tsx                # calendar page
-      campaigns.index.tsx      # /campaigns — range (overlap) + status filters, list/timeline toggle
+      campaigns.index.tsx      # /campaigns — list with range (overlap) + status filters
       campaigns.new.tsx        # /campaigns/new — create form (page, not overlay)
       campaigns.$id.tsx        # /campaigns/:id — deliverables, completion %, edit, delete
       campaigns.$id.deliverables.new.tsx              # /campaigns/:id/deliverables/new
