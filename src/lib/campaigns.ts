@@ -59,6 +59,19 @@ export function rangeBounds(
   }
 }
 
+// The timeline needs a bounded window, so the shared range filter maps onto a
+// zoom level (features.md: zoom ties to the existing range filter, not a second
+// control). "Today" zooms to its week; unbounded "all" falls back to the
+// quarter — wide enough to show concurrency, narrow enough to keep day columns
+// readable.
+export type TimelineZoom = Exclude<RangeKey, "day" | "all">
+
+export function timelineZoom(range: RangeKey): TimelineZoom {
+  if (range === "day") return "week"
+  if (range === "all") return "quarter"
+  return range
+}
+
 // Campaigns are read/written directly by the client (RLS-governed).
 // Range filtering uses OVERLAP semantics, bounds inclusive (roadmap.md):
 // a campaign is in range when start_date <= range_end AND end_date >= range_start,
