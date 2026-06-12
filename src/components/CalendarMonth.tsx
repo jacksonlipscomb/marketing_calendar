@@ -17,8 +17,9 @@ const dayKey = (d: Date) => format(d, "yyyy-MM-dd")
 
 // Month grid of deliverables by due date, colored by the parent campaign's
 // category. Clicking a deliverable opens its campaign page; the mail icon
-// opens the schedule-email dialog. (Same-date wrapping and the campaign
-// timeline land in Phases 2–3.)
+// opens the schedule-email dialog. Same-date deliverables stack, titles
+// wrapping up to two lines (cells grow; clamping keeps a long title from
+// drowning the cell).
 export function CalendarMonth() {
   const {
     currentMonth,
@@ -128,13 +129,15 @@ export function CalendarMonth() {
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") openCampaign(d)
                     }}
-                    className="group flex cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 text-xs text-white"
+                    className="group flex cursor-pointer items-start gap-1 rounded px-1.5 py-0.5 text-xs text-white"
                     style={{
                       backgroundColor: `var(--cat-${d.campaigns?.category ?? "recruiting"})`,
                     }}
                     title={`${d.title} · ${d.campaigns?.name ?? "campaign"}`}
                   >
-                    <span className="truncate">{d.title}</span>
+                    <span className="line-clamp-2 min-w-0 flex-1 break-words">
+                      {d.title}
+                    </span>
                     <button
                       type="button"
                       aria-label="Schedule email"
@@ -142,7 +145,7 @@ export function CalendarMonth() {
                         e.stopPropagation()
                         openScheduleEmail({ id: d.id, title: d.title })
                       }}
-                      className="ml-auto shrink-0 opacity-80 hover:opacity-100"
+                      className="mt-0.5 ml-auto shrink-0 opacity-80 hover:opacity-100"
                     >
                       <Mail className="size-3" />
                     </button>

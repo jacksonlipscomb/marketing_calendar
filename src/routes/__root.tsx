@@ -1,10 +1,11 @@
 import { Link, Outlet } from "@tanstack/react-router"
 
+import { Breadcrumbs } from "@/components/Breadcrumbs"
 import { ScheduleEmailDialog } from "@/components/ScheduleEmailDialog"
 
 // App chrome. The schedule-email dialog mounts here (not per-page) because the
 // mail quick-action exists on both the calendar and campaign detail pages.
-// URL-derived breadcrumbs replace the simple nav in Phase 2.
+// Breadcrumbs are URL-derived (page pattern); the nav stays for quick switching.
 export function RootLayout() {
   return (
     <div className="min-h-svh bg-background text-foreground">
@@ -34,7 +35,8 @@ export function RootLayout() {
           </nav>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-6">
+      <main className="mx-auto grid max-w-6xl gap-4 px-4 py-6">
+        <Breadcrumbs />
         <Outlet />
       </main>
       <ScheduleEmailDialog />
