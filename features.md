@@ -53,9 +53,18 @@ cut-line items (day/year ranges, breadcrumbs) shipped.
 
 **Cut line:** day/year range options (week/month/quarter/all carry the story); breadcrumb polish.
 
-## Phase 3 — Timeline view — **status: not started**
+## Phase 3 — Timeline view — **status: built, in owner review (branch `phase3-timeline`)**
 
 The owner's highest-value addition: concurrency at a glance.
+
+Verified so far (2026-06-11): lint/typecheck/build green; the grid column math
+checked against real date-fns at all four zooms (today lands at week col 5,
+month col 11, quarter col 72, year col 162; out-of-window dates clamp; a
+Q2/Q3-straddling bar clips at the window edge). Built as a List/Timeline
+toggle on /campaigns sharing the existing range+status filters; range "day"
+zooms to its week, "all" falls back to quarter (noted in the UI). Neither
+cut-line item was cut — week zoom and tick hover detail both shipped.
+**Not yet exercised:** browser click-through.
 
 - Horizontal bar per campaign; bar spans the campaign's date range; bar color = category.
 - Deliverable due dates as ticks/points on the bar.

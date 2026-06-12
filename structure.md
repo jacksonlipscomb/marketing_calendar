@@ -17,7 +17,7 @@ marketing-calendar/
       CategoryFilter.tsx       # campaign-category toggles over the calendar
       Breadcrumbs.tsx          # URL-derived trail (campaign id segment resolved to name)
       ConfirmDeleteButton.tsx  # destructive-action guard for cascade deletes
-      TimelineView.tsx         # horizontal campaign bars, deliverable ticks (Phase 3)
+      TimelineView.tsx         # horizontal campaign bars + deliverable ticks; zoom = shared range filter
       RangeFilter.tsx          # day/week/month/quarter/year/all, overlap semantics
       StatusFilter.tsx         # generic status pills (campaign + deliverable lists)
       ScheduleEmailDialog.tsx  # attach + schedule email via schedule-email (mounted in __root)
@@ -40,7 +40,7 @@ marketing-calendar/
     routes/                    # page pattern: every page is a real URL (deep-linkable)
       __root.tsx               # app shell: nav + URL-derived breadcrumbs + schedule dialog
       index.tsx                # calendar page
-      campaigns.index.tsx      # /campaigns — list with range (overlap) + status filters
+      campaigns.index.tsx      # /campaigns — range (overlap) + status filters, list/timeline toggle
       campaigns.new.tsx        # /campaigns/new — create form (page, not overlay)
       campaigns.$id.tsx        # /campaigns/:id — deliverables, completion %, edit, delete
       campaigns.$id.deliverables.new.tsx              # /campaigns/:id/deliverables/new

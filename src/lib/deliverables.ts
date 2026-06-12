@@ -24,8 +24,9 @@ export function monthGridRange(month: Date) {
   }
 }
 
-// Calendar feed: deliverables due inside the visible month grid, with the parent
-// campaign's name and category embedded (category drives the color chip).
+// Deliverables due inside an arbitrary date window, with the parent campaign's
+// name and category embedded (category drives the color chip). Feeds both the
+// calendar grid and the timeline ticks.
 export type CalendarDeliverable = DeliverableRow & {
   campaigns: {
     name: string
@@ -33,8 +34,7 @@ export type CalendarDeliverable = DeliverableRow & {
   } | null
 }
 
-export function useMonthDeliverables(month: Date) {
-  const { start, end } = monthGridRange(month)
+export function useDeliverablesInRange(start: Date, end: Date) {
   return useQuery({
     queryKey: ["deliverables", "range", fmt(start), fmt(end)],
     queryFn: async (): Promise<CalendarDeliverable[]> => {
@@ -49,6 +49,11 @@ export function useMonthDeliverables(month: Date) {
       return data ?? []
     },
   })
+}
+
+export function useMonthDeliverables(month: Date) {
+  const { start, end } = monthGridRange(month)
+  return useDeliverablesInRange(start, end)
 }
 
 // Deliverables of one campaign, due-date order. Drives the campaign detail page
