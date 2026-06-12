@@ -50,7 +50,7 @@ export function UpcomingSends() {
               </Badge>
             </div>
             <p className="text-muted-foreground truncate text-xs">
-              {send.events ? `${send.events.title} · ` : ""}
+              {send.deliverables ? `${send.deliverables.title} · ` : ""}
               to {send.recipient}
             </p>
             <p className="text-muted-foreground text-xs">

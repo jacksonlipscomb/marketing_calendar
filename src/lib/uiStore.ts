@@ -1,27 +1,29 @@
 import { create } from "zustand"
 import { addMonths, startOfMonth, subMonths } from "date-fns"
-import { EVENT_CATEGORIES, type EventCategory, type EventRow } from "./database.types"
+import {
+  CAMPAIGN_CATEGORIES,
+  type CampaignCategory,
+} from "./database.types"
+
+// What the schedule-email dialog needs to know about its target deliverable:
+// the id for the request, the title for the dialog copy.
+export type ScheduleTarget = { id: string; title: string }
 
 type UiState = {
-  // Calendar (feature 1)
+  // Calendar month navigation
   currentMonth: Date
   nextMonth: () => void
   prevMonth: () => void
   goToday: () => void
 
-  // Category filter (feature 4) — which categories are currently shown.
-  activeCategories: EventCategory[]
-  toggleCategory: (category: EventCategory) => void
+  // Category filter — which campaign categories are currently shown.
+  activeCategories: CampaignCategory[]
+  toggleCategory: (category: CampaignCategory) => void
 
-  // Event create/edit dialog (feature 2). `event` set => edit; `date` set => create.
-  eventDialog: { open: boolean; event: EventRow | null; date: string | null }
-  openCreateEvent: (date: string) => void
-  openEditEvent: (event: EventRow) => void
-  closeEventDialog: () => void
-
-  // Schedule-email dialog (feature 3) for a given event.
-  scheduleDialog: { open: boolean; event: EventRow | null }
-  openScheduleEmail: (event: EventRow) => void
+  // Schedule-email dialog for a given deliverable. Campaign/deliverable
+  // create+edit are pages (page pattern), not dialogs, so no form state here.
+  scheduleDialog: { open: boolean; deliverable: ScheduleTarget | null }
+  openScheduleEmail: (deliverable: ScheduleTarget) => void
   closeScheduleDialog: () => void
 }
 
@@ -31,7 +33,7 @@ export const useUiStore = create<UiState>((set) => ({
   prevMonth: () => set((s) => ({ currentMonth: subMonths(s.currentMonth, 1) })),
   goToday: () => set({ currentMonth: startOfMonth(new Date()) }),
 
-  activeCategories: [...EVENT_CATEGORIES],
+  activeCategories: [...CAMPAIGN_CATEGORIES],
   toggleCategory: (category) =>
     set((s) => ({
       activeCategories: s.activeCategories.includes(category)
@@ -39,15 +41,9 @@ export const useUiStore = create<UiState>((set) => ({
         : [...s.activeCategories, category],
     })),
 
-  eventDialog: { open: false, event: null, date: null },
-  openCreateEvent: (date) =>
-    set({ eventDialog: { open: true, event: null, date } }),
-  openEditEvent: (event) =>
-    set({ eventDialog: { open: true, event, date: null } }),
-  closeEventDialog: () =>
-    set({ eventDialog: { open: false, event: null, date: null } }),
-
-  scheduleDialog: { open: false, event: null },
-  openScheduleEmail: (event) => set({ scheduleDialog: { open: true, event } }),
-  closeScheduleDialog: () => set({ scheduleDialog: { open: false, event: null } }),
+  scheduleDialog: { open: false, deliverable: null },
+  openScheduleEmail: (deliverable) =>
+    set({ scheduleDialog: { open: true, deliverable } }),
+  closeScheduleDialog: () =>
+    set({ scheduleDialog: { open: false, deliverable: null } }),
 }))

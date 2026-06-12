@@ -1,10 +1,11 @@
-// schedule-email — the load-bearing edge function for the PoC.
+// schedule-email — the load-bearing edge function (manual send path).
 //
-// The browser may write `events` directly (RLS-governed) but CANNOT write
-// `email_jobs`: it has no RLS write policy. All `email_jobs` writes happen here,
-// with the service role, after this function validates the request, enforces the
-// recipient allowlist, persists the job, and (for immediate sends) calls Resend
-// and records the result. The provider key never leaves this runtime.
+// The browser may write `campaigns`/`deliverables` directly (RLS-governed) but
+// CANNOT write `email_jobs`: it has no RLS write policy. All `email_jobs` writes
+// happen here (and, in Phase 4, in send-reminders), with the service role, after
+// this function validates the request, enforces the recipient allowlist, persists
+// the job, and (for immediate sends) calls Resend and records the result. The
+// provider key never leaves this runtime.
 //
 // Imports use inline `npm:` specifiers (no per-function deno.json / import map).
 import { z } from "npm:zod@^4"
@@ -26,7 +27,7 @@ function json(body: unknown, status = 200): Response {
 
 // Same shape the client sends (and the client validates with its own Zod copy).
 const requestSchema = z.object({
-  event_id: z.uuid(),
+  deliverable_id: z.uuid(),
   subject: z.string().min(1),
   body: z.string().min(1),
   recipient: z.email(),
@@ -72,25 +73,25 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   )
 
-  // 4. Confirm the event exists.
-  const { data: event, error: eventErr } = await admin
-    .from("events")
+  // 4. Confirm the deliverable exists.
+  const { data: deliverable, error: deliverableErr } = await admin
+    .from("deliverables")
     .select("id")
-    .eq("id", payload.event_id)
+    .eq("id", payload.deliverable_id)
     .maybeSingle()
-  if (eventErr) return json({ error: eventErr.message }, 500)
-  if (!event) return json({ error: "event not found" }, 404)
+  if (deliverableErr) return json({ error: deliverableErr.message }, 500)
+  if (!deliverable) return json({ error: "deliverable not found" }, 404)
 
   const sendNow =
     !payload.scheduled_for || new Date(payload.scheduled_for) <= new Date()
 
   // 5. Future-dated → persist as `scheduled`, no send. (No worker delivers these
-  //    later in the PoC — that is out of scope.)
+  //    later — out of scope. Phase 4's send-reminders is a separate path.)
   if (!sendNow) {
     const { data, error } = await admin
       .from("email_jobs")
       .insert({
-        event_id: payload.event_id,
+        deliverable_id: payload.deliverable_id,
         subject: payload.subject,
         body: payload.body,
         recipient: payload.recipient,
@@ -107,7 +108,7 @@ Deno.serve(async (req) => {
   const { data: jobRow, error: insertErr } = await admin
     .from("email_jobs")
     .insert({
-      event_id: payload.event_id,
+      deliverable_id: payload.deliverable_id,
       subject: payload.subject,
       body: payload.body,
       recipient: payload.recipient,
