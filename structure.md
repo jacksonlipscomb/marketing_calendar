@@ -1,6 +1,6 @@
 # Marketing Calendar — Structure and Deployment (campaign/deliverable rewrite)
 
-Covers repo layout, Supabase setup (including pg_cron and Vault), Cloudflare Pages, and CI/CD. The data model and function contracts live in `roadmap.md`; feature sequencing lives in `features.md`. Vite + React + TypeScript frontend.
+Covers repo layout, Supabase setup (including pg_cron and Vault), Cloudflare Pages, and CI/CD. The data model and function contracts live in `roadmap.md`; feature status and backlog live in `features.md`. Vite + React + TypeScript frontend.
 
 ## Repo layout
 

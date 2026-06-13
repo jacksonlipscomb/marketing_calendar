@@ -1,6 +1,6 @@
 # Marketing Calendar — Roadmap (campaign/deliverable rewrite)
 
-Reference document for the fuller implementation that replaces the events PoC. Read this before planning any work. Repo, Supabase, Cloudflare, and CI/CD setup live in `structure.md`. Feature sequencing, acceptance criteria, and cut lines live in `features.md`.
+Reference document for the fuller implementation that replaces the events PoC. Read this before planning any work. Repo, Supabase, Cloudflare, and CI/CD setup live in `structure.md`. Feature status and backlog live in `features.md`.
 
 The PoC this grows out of proved its claim and shipped (see git history of this file). Its single-day `events` model is being replaced, not extended.
 
