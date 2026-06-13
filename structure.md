@@ -255,3 +255,5 @@ Caution on `supabase db push` in CI, doubly so now: it applies migrations to the
 | `SUPABASE_ACCESS_TOKEN` / `SUPABASE_DB_PASSWORD` / `CLOUDFLARE_API_TOKEN` | GitHub Actions secrets | Deploy jobs | Runtime, frontend |
 
 The rule that drives the table is unchanged: the email provider key reaches only the edge functions — never the browser, the repo, GitHub, or Vault. The one new rule: a secret that Postgres itself must read lives in Vault; everything the Deno runtime reads lives in function secrets.
+
+> Parked-state note: the rows that name `send-reminders` (`CRON_SECRET`, `cron_secret`, `REMINDER_LEAD_DAYS`) and the "both functions" entries describe the reminder path, which is **parked — not set in production yet** (see Edge functions, above). Today only `schedule-email` consumes these. `cron_secret` in particular is not created until activation.

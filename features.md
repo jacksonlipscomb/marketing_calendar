@@ -10,7 +10,7 @@ Ordering logic: Phase 1 is the dependency root (everything reads the new schema)
 
 **Current state (2026-06-12):** Phases 1–3 are live on `main`. **Phase 4 (reminders) is built but parked — not in production** (see below). The next active phase is Phase 5 (templates).
 
-## Phase 1 — Foundation: campaign/deliverable model — **status: built, in owner review (branch `phase1-campaign-model`)**
+## Phase 1 — Foundation: campaign/deliverable model — **status: live on `main`**
 
 The reset migration and the minimum UI to use it. Blocking everything else.
 
@@ -20,8 +20,8 @@ the same sequence prod will run; old tables/enums gone, new schema live; as the
 direct `email_jobs` insert is RLS-denied; the re-pointed function (served locally)
 returned 201 + a coherent `scheduled` row for a future-dated job, 403 for a
 disallowed recipient, 404 for an unknown deliverable. lint/typecheck/build green.
-**Not yet exercised:** clicking through the React UI itself, and nothing has
-touched prod — the destructive migration applies only when the owner merges.
+The destructive migration has since been applied to prod via merge; the React
+UI was first click-tested in the Phase 3 Playwright pass.
 
 - `0004_reset_campaigns.sql`: drop PoC tables (`email_jobs` then `events` then old enums), create `campaigns` + `deliverables` + re-pointed `email_jobs`, RLS, grants. **Destructive** — see roadmap.md → Reset migration.
 - Re-point `schedule-email` to `deliverable_id` (request schema, existence check, types).
@@ -33,7 +33,7 @@ touched prod — the destructive migration applies only when the owner merges.
 
 **Cut line:** none. This phase is the floor; nothing later ships without it.
 
-## Phase 2 — Core UI: lists, filters, calendar, pages — **status: built, in owner review (branch `phase2-core-ui`)**
+## Phase 2 — Core UI: lists, filters, calendar, pages — **status: live on `main`**
 
 Makes the model legible. All read-path work, low risk.
 
@@ -42,8 +42,8 @@ exact conditions checked against the local DB — a campaign straddling the Q2/Q
 boundary returns in both quarter windows, range+status combine, and a week
 window includes overlapping long campaigns while excluding not-yet-started ones.
 Completion % is computed from the unfiltered deliverable list by construction.
-**Not yet exercised:** browser click-through. Nothing built here was cut — both
-cut-line items (day/year ranges, breadcrumbs) shipped.
+Browser click-through was first exercised in the Phase 3 Playwright pass. Nothing
+built here was cut — both cut-line items (day/year ranges, breadcrumbs) shipped.
 
 - Campaign list with **range filter** (day / week / month / quarter / year / all) using overlap semantics — a campaign appears in every range it overlaps (`start_date <= range_end AND end_date >= range_start`).
 - **Status filter** on the campaign list (planned / in-progress / done), combinable with the range filter.
@@ -55,7 +55,7 @@ cut-line items (day/year ranges, breadcrumbs) shipped.
 
 **Cut line:** day/year range options (week/month/quarter/all carry the story); breadcrumb polish.
 
-## Phase 3 — Campaign bars on the calendar — **status: re-built, in owner review (branch `phase3-calendar-bars`)**
+## Phase 3 — Campaign bars on the calendar — **status: live on `main`**
 
 The owner's highest-value addition: concurrency at a glance.
 
