@@ -233,6 +233,8 @@ Behavior is the PoC contract with `deliverable_id` replacing `event_id`:
 
 ### `send-reminders` (new)
 
+> **Status: built but PARKED — not in production** (owner decision 2026-06-12). The implementation lives in PR #11, unmerged and undeployed. This contract is the design of record; see [docs/archive/phase4-reminders.md](docs/archive/phase4-reminders.md) for the parked state and the activation checklist.
+
 Invoked once daily by pg_cron via `pg_net` (setup in `structure.md`). No request body; behavior:
 
 1. **Authenticate the caller.** The cron call carries a shared secret in an `x-cron-secret` header. The function compares it to its `CRON_SECRET` function secret: 401 on mismatch, 500 (fail closed) if `CRON_SECRET` is unset. The function deploys with `verify_jwt` disabled (per-function config) — the caller is Postgres, not a user session, so the header check replaces the JWT check. The same secret value lives in **two homes by design**: Vault, where the cron SQL reads it (`vault.decrypted_secrets`), and function secrets, where the function reads it. This is the case Vault actually exists for (a Postgres-side caller needing a secret) — unlike `RESEND_API_KEY`, which stays in function secrets only.

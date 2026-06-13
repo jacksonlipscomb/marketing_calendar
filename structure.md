@@ -108,6 +108,8 @@ npx supabase secrets set REMINDER_LEAD_DAYS=3          # reminder lead window (o
 
 ### pg_cron + Vault (the scheduled reminder path) — one-time SQL setup
 
+> **Not yet performed — the reminder path is parked** (see [docs/archive/phase4-reminders.md](docs/archive/phase4-reminders.md)). The steps below are the activation procedure for when it un-parks; none of it is set up in production today.
+
 This is dashboard/SQL setup, not pipeline-managed. Run in the SQL editor (or a migration, but the Vault secret value itself must never be committed, so the secret creation is always manual):
 
 ```sql

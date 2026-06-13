@@ -8,6 +8,8 @@ Ship **50–80% of the features well enough to tell 100% of the story**. The sto
 
 Ordering logic: Phase 1 is the dependency root (everything reads the new schema). Phase 2 makes the model legible. Phases 3–5 follow the owner's stated priority: timeline (highest demo value), reminders (proves the function is the backbone, not a one-off), templates (cheap once the model exists, shows product thinking). Phase 6 is stretch.
 
+**Current state (2026-06-12):** Phases 1–3 are live on `main`. **Phase 4 (reminders) is built but parked — not in production** (see below). The next active phase is Phase 5 (templates).
+
 ## Phase 1 — Foundation: campaign/deliverable model — **status: built, in owner review (branch `phase1-campaign-model`)**
 
 The reset migration and the minimum UI to use it. Blocking everything else.
@@ -81,19 +83,11 @@ long names truncate inside the bar; toggling a category hides its bars and
 chips together; clicking a bar and pressing Enter on a focused bar both
 navigate to the right campaign. lint/typecheck/build green.
 
-## Phase 4 — Reminder emails (scheduled send path) — **status: not started**
+## Phase 4 — Reminder emails (scheduled send path) — **status: built, PARKED (not in production)**
 
-Proves the edge function is the backbone, not a one-off. Full contract in roadmap.md → `send-reminders`.
+Built and locally verified, then **parked by the owner on 2026-06-12** — not needed for the current demo. The work sits in **PR #11** (branch `phase4-reminders`), open and unmerged; even if merged it stays dormant until the one-time setup runs (no cron job calls it, and `CRON_SECRET` is unset so it fail-closes). The manual send path (`schedule-email`) is unaffected and live.
 
-- `send-reminders` function: cron-secret auth (`x-cron-secret` vs `CRON_SECRET`, fail closed, `verify_jwt` off), find deliverables due within `REMINDER_LEAD_DAYS` (default 3) with `reminded_at is null` and campaign `reminders_enabled = true`, send via Resend, write `email_jobs` rows, set `reminded_at` only on success.
-- Recipient rule: reminders deliver **only to `ALLOWED_RECIPIENT_EMAIL`**, owners named in the content (owners are display names; the test sender can't deliver elsewhere anyway).
-- One-time setup: pg_cron + pg_net, Vault `cron_secret`, daily schedule (SQL in structure.md).
-- `reminders_enabled` toggle exposed on the campaign form.
-- Add the `deploy send-reminders` step to `deploy.yml`.
-
-**Acceptance:** invoking the function with the right header sends exactly one reminder per due deliverable and records each as an `email_jobs` row; a second invocation sends nothing (dedupe); wrong/missing header is rejected 401/500; a real cron firing appears in `cron.job_run_details` with a 2xx in `net._http_response`. **State exactly what was verified — never report cron delivery as working if only the manual invocation was tested.**
-
-**Cut line:** per-campaign toggle UI (default-on with the column in place is enough to demo); `REMINDER_LEAD_DAYS` configurability (hardcoded 3 is fine).
+Full spec, verification record, and the activation checklist are archived in **[docs/archive/phase4-reminders.md](docs/archive/phase4-reminders.md)**. When un-parking, resume from there.
 
 ## Phase 5 — Campaign templates — **status: not started**
 
