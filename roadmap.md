@@ -1,6 +1,6 @@
 # Marketing Calendar — Roadmap (campaign/deliverable rewrite)
 
-Reference document for the fuller implementation that replaces the events PoC. Read this before planning any work. Repo, Supabase, Cloudflare, and CI/CD setup live in `structure.md`. Feature sequencing, acceptance criteria, and cut lines live in `features.md`.
+Reference document for the fuller implementation that replaces the events PoC. Read this before planning any work. Repo, Supabase, Cloudflare, and CI/CD setup live in `structure.md`. Feature status and backlog live in `features.md`.
 
 The PoC this grows out of proved its claim and shipped (see git history of this file). Its single-day `events` model is being replaced, not extended.
 
@@ -26,7 +26,7 @@ In scope:
 - Campaign/deliverable model with multi-owner `text[]` fields.
 - Range-filtered campaign lists (day/week/month/quarter/year/all) with overlap semantics, plus status filters on campaigns and deliverables.
 - Derived campaign completion percentage.
-- Timeline view, reminder emails via pg_cron, campaign templates (in that priority order — see `features.md`).
+- Calendar campaign bars (shipped), reminder emails via pg_cron (built, parked), and campaign templates (deferred) — see `features.md` for current status and priority.
 
 Out of scope:
 - Multi-tenant or per-user authorization; the team remains a single anonymous-authenticated unit.
@@ -120,9 +120,9 @@ create index email_jobs_deliverable_id_idx on email_jobs (deliverable_id);
 create index email_jobs_status_sched_idx   on email_jobs (status, scheduled_for);
 ```
 
-### Templates (schema arrives in Phase 5, not in the reset)
+### Templates (schema deferred — not in the reset)
 
-Templates are stored as data, in their own later migration, so the foundation phase carries no unused tables. Template deliverables carry a day-offset from campaign start so "create from template" can compute real due dates. Created campaigns are fully editable afterward — the template is a starting point, not a lock.
+Templates are stored as data, in their own later migration, so the foundation carries no unused tables. Template deliverables carry a day-offset from campaign start so "create from template" can compute real due dates. Created campaigns are fully editable afterward — the template is a starting point, not a lock.
 
 ```sql
 create table templates (
@@ -172,7 +172,7 @@ This is the rule for every range filter (day/week/month/quarter/year). A campaig
 alter table campaigns    enable row level security;
 alter table deliverables enable row level security;
 alter table email_jobs   enable row level security;
--- (templates + template_deliverables: same pattern as campaigns, in the Phase 5 migration)
+-- (templates + template_deliverables: same pattern as campaigns, in the templates migration)
 
 create policy campaigns_authenticated_all on campaigns
   for all to authenticated using (true) with check (true);
@@ -199,7 +199,7 @@ grant select                         on table public.email_jobs   to authenticat
 grant all on table public.campaigns    to service_role;
 grant all on table public.deliverables to service_role;
 grant all on table public.email_jobs   to service_role;
--- (templates tables: same pattern in the Phase 5 migration)
+-- (templates tables: same pattern in the templates migration)
 ```
 
 Only `authenticated` and `service_role`; never `anon` (the client signs in anonymously, which *is* the `authenticated` role).
@@ -252,7 +252,7 @@ Both functions read their secrets via `Deno.env.get` and the service role key fr
 
 ## Build order
 
-Sequencing, acceptance criteria, and cut lines live in `features.md`. The one rule that belongs here: **Phase 1 (reset schema + re-pointed `schedule-email` + minimal campaign/deliverable CRUD) ships before any breadth feature.** An early stop must still leave a working system whose email path runs through the function.
+Status and priority live in `features.md`. The one rule that belongs here: the foundation — reset schema + re-pointed `schedule-email` + minimal campaign/deliverable CRUD — was the floor that shipped before any breadth feature, and any future work must keep the system in a state where the email path still runs through the function.
 
 ## Working agreement for agents
 

@@ -1,10 +1,10 @@
 # Marketing Calendar — Structure and Deployment (campaign/deliverable rewrite)
 
-Covers repo layout, Supabase setup (including pg_cron and Vault), Cloudflare Pages, and CI/CD. The data model and function contracts live in `roadmap.md`; feature sequencing lives in `features.md`. Vite + React + TypeScript frontend.
+Covers repo layout, Supabase setup (including pg_cron and Vault), Cloudflare Pages, and CI/CD. The data model and function contracts live in `roadmap.md`; feature status and backlog live in `features.md`. Vite + React + TypeScript frontend.
 
 ## Repo layout
 
-Entries marked with a phase are future state; everything else exists as of Phase 1. PoC files that were replaced (`EventDialog`, `events.ts`) are gone, not left dead.
+Entries marked *planned* or *parked* aren't on `main` yet; everything else is live. PoC files that were replaced (`EventDialog`, `events.ts`) are gone, not left dead.
 
 ```
 marketing-calendar/
@@ -31,7 +31,7 @@ marketing-calendar/
       schemas.ts               # Zod schemas + form→payload mappers
       campaigns.ts             # campaign hooks + rangeBounds + overlap queries (list + calendar window)
       deliverables.ts          # deliverable hooks + monthGridRange + derived completionPercent
-      templates.ts             # template hooks + create-from-template (Phase 5)
+      templates.ts             # template hooks + create-from-template (planned — low priority)
       emailJobs.ts             # useScheduleEmail (invoke fn), useUpcomingSends
       uiStore.ts               # Zustand UI state (month, category + range + status filters, schedule dialog)
       queryClient.ts
@@ -53,7 +53,7 @@ marketing-calendar/
     migrations/
       0001..0003               # PoC migrations (already applied; never edit applied migrations)
       0004_reset_campaigns.sql # DESTRUCTIVE reset: drops PoC tables, creates campaign model + grants
-      000N_templates.sql       # Phase 5: templates tables + grants
+      000N_templates.sql       # templates tables + grants (planned — low priority)
     functions/
       schedule-email/index.ts  # manual send path (re-pointed to deliverable_id)
       send-reminders/index.ts  # daily reminder path — PARKED, PR #11 only (not on main)
