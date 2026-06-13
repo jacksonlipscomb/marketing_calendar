@@ -49,14 +49,14 @@ marketing-calendar/
   public/
     _redirects                 # SPA fallback: /* /index.html 200
   supabase/
-    config.toml                # verify_jwt default true; per-function override for send-reminders
+    config.toml                # verify_jwt default true; send-reminders override is parked (PR #11)
     migrations/
       0001..0003               # PoC migrations (already applied; never edit applied migrations)
       0004_reset_campaigns.sql # DESTRUCTIVE reset: drops PoC tables, creates campaign model + grants
       000N_templates.sql       # Phase 5: templates tables + grants
     functions/
       schedule-email/index.ts  # manual send path (re-pointed to deliverable_id)
-      send-reminders/index.ts  # daily reminder path (Phase 4)
+      send-reminders/index.ts  # daily reminder path — PARKED, PR #11 only (not on main)
   .github/workflows/
     ci.yml                     # pull requests: lint, typecheck, test, build
     deploy.yml                 # push to main: migrations, functions, frontend
@@ -81,11 +81,13 @@ Every migration that creates a table includes its grants in the same file (`auth
 
 ### Edge functions
 
-Two functions, deployed independently:
+> **`send-reminders` is parked — PR #11 only, not on `main`.** Its function file, `config.toml` block, and `deploy.yml` step are not merged and not deployed (see [docs/archive/phase4-reminders.md](docs/archive/phase4-reminders.md)). Everything about it below — the deploy command, the `verify_jwt` block, the cron/Vault setup — is the intended setup for when it un-parks, not the current state. Only `schedule-email` is live.
+
+Two functions, deployed independently (`send-reminders` parked — see above):
 
 ```
 npx supabase functions deploy schedule-email
-npx supabase functions deploy send-reminders --no-verify-jwt
+npx supabase functions deploy send-reminders --no-verify-jwt   # parked (PR #11)
 ```
 
 `send-reminders` runs with JWT verification off because its caller is Postgres (pg_cron via pg_net), not a user session; the `x-cron-secret` header check replaces the JWT check (contract in `roadmap.md`). Mirror this in `supabase/config.toml` for the local stack:
@@ -171,9 +173,9 @@ Two workflows, same shape as the PoC. CI gates merges; deploy runs after merge.
 
 Runs on pull requests: `npm ci`, lint, typecheck, `npm test --if-present`, build.
 
-### `.github/workflows/deploy.yml` — one change: deploy both functions
+### `.github/workflows/deploy.yml` — deploys the live function (+ a parked step)
 
-This is the **target state**. The `Deploy send-reminders` step is added in Phase 4, alongside the function itself — do not add it to CI earlier, or every merge to main fails on deploying a function directory that does not exist yet.
+This is the **target state**. On `main` the deploy job only deploys `schedule-email`. The `Deploy send-reminders` step shown below lands with PR #11 (parked) alongside the function itself — it must not be added to CI before the function file exists, or every merge to main fails deploying a directory that isn't there.
 
 ```yaml
 name: Deploy
@@ -203,7 +205,7 @@ jobs:
         run: supabase functions deploy schedule-email --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      - name: Deploy send-reminders        # added in Phase 4
+      - name: Deploy send-reminders        # parked — lands with PR #11, not on main
         run: supabase functions deploy send-reminders --no-verify-jwt --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
