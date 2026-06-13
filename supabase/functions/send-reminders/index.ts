@@ -94,6 +94,10 @@ Deno.serve(async (req) => {
   const apiKey = Deno.env.get("RESEND_API_KEY")
   let sent = 0
   let failed = 0
+  // Post-send bookkeeping failures (email already delivered). Surfaced in the
+  // summary so a failed reminded_at write — the one remaining double-send
+  // window — is loud in the cron logs, not silent.
+  const updateErrors: string[] = []
 
   // 5. One reminder per deliverable, each recorded as an email_jobs row using
   //    the same insert-first, then sent/failed pattern as schedule-email.
@@ -164,7 +168,17 @@ Deno.serve(async (req) => {
         continue
       }
 
-      await admin
+      // The email is delivered. Set the dedupe guard FIRST: if the job-row
+      // update below fails instead, the damage is a stale `scheduled` row
+      // (visible, harmless); if reminded_at were last and ITS write failed,
+      // the next run would re-send — the invariant violation. Both errors are
+      // checked and reported; only a reminded_at failure can still double-send,
+      // and it now shows up in the summary instead of passing silently.
+      const { error: remindErr } = await admin
+        .from("deliverables")
+        .update({ reminded_at: new Date().toISOString() })
+        .eq("id", d.id)
+      const { error: jobErr } = await admin
         .from("email_jobs")
         .update({
           status: "sent",
@@ -172,11 +186,16 @@ Deno.serve(async (req) => {
           provider_message_id: result?.id ?? null,
         })
         .eq("id", job.id)
-      // Success — and only success — marks the deliverable reminded.
-      await admin
-        .from("deliverables")
-        .update({ reminded_at: new Date().toISOString() })
-        .eq("id", d.id)
+      if (remindErr) {
+        updateErrors.push(
+          `deliverable ${d.id}: reminded_at write failed (${remindErr.message}) — WILL RE-SEND next run`,
+        )
+      }
+      if (jobErr) {
+        updateErrors.push(
+          `email_job ${job.id}: status update failed (${jobErr.message}) — row stuck as scheduled`,
+        )
+      }
       sent++
     } catch (err) {
       await admin
@@ -188,5 +207,14 @@ Deno.serve(async (req) => {
   }
 
   // 6. Summary for the function logs / net._http_response.
-  return json({ window: { from: today, to: windowEnd, leadDays }, due: due.length, sent, failed })
+  if (updateErrors.length > 0) {
+    console.error("send-reminders post-send update errors:", updateErrors)
+  }
+  return json({
+    window: { from: today, to: windowEnd, leadDays },
+    due: due.length,
+    sent,
+    failed,
+    ...(updateErrors.length > 0 ? { update_errors: updateErrors } : {}),
+  })
 })
