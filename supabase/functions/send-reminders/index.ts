@@ -94,10 +94,26 @@ Deno.serve(async (req) => {
   const apiKey = Deno.env.get("RESEND_API_KEY")
   let sent = 0
   let failed = 0
-  // Post-send bookkeeping failures (email already delivered). Surfaced in the
-  // summary so a failed reminded_at write — the one remaining double-send
-  // window — is loud in the cron logs, not silent.
+  // Bookkeeping-write failures, surfaced in the summary so a status write that
+  // didn't land is loud in the cron logs instead of silent. The reminded_at
+  // case (email already delivered) is the one double-send window; the others
+  // are observability mismatches — a row left `scheduled` while counted failed.
   const updateErrors: string[] = []
+
+  // Mark a job failed and count it; report if the failed-status write itself
+  // didn't land (row stays `scheduled` though the summary says failed).
+  async function markJobFailed(jobId: string, reason: string) {
+    const { error: markErr } = await admin
+      .from("email_jobs")
+      .update({ status: "failed", error: reason })
+      .eq("id", jobId)
+    if (markErr) {
+      updateErrors.push(
+        `email_job ${jobId}: failed-status write failed (${markErr.message}) — row stuck as scheduled`,
+      )
+    }
+    failed++
+  }
 
   // 5. One reminder per deliverable, each recorded as an email_jobs row using
   //    the same insert-first, then sent/failed pattern as schedule-email.
@@ -132,11 +148,7 @@ Deno.serve(async (req) => {
 
     if (!apiKey) {
       // Misconfig is visible as a failed job rather than a silent crash.
-      await admin
-        .from("email_jobs")
-        .update({ status: "failed", error: "RESEND_API_KEY not configured" })
-        .eq("id", job.id)
-      failed++
+      await markJobFailed(job.id, "RESEND_API_KEY not configured")
       continue
     }
 
@@ -157,14 +169,10 @@ Deno.serve(async (req) => {
       const result = await res.json().catch(() => ({}))
 
       if (!res.ok) {
-        await admin
-          .from("email_jobs")
-          .update({
-            status: "failed",
-            error: result?.message ?? `Resend error ${res.status}`,
-          })
-          .eq("id", job.id)
-        failed++
+        await markJobFailed(
+          job.id,
+          result?.message ?? `Resend error ${res.status}`,
+        )
         continue
       }
 
@@ -198,11 +206,7 @@ Deno.serve(async (req) => {
       }
       sent++
     } catch (err) {
-      await admin
-        .from("email_jobs")
-        .update({ status: "failed", error: (err as Error).message })
-        .eq("id", job.id)
-      failed++
+      await markJobFailed(job.id, (err as Error).message)
     }
   }
 
