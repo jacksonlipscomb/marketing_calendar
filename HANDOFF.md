@@ -1,15 +1,15 @@
 # Handoff — Marketing Calendar (campaign/deliverable build)
 
 > **Current as of 2026-06-14.** The original events-based PoC was replaced by a
-> campaign/deliverable rewrite. The foundation, core UI, calendar bars, and
-> deliverable deep linking are **live in production** (deep linking merged via PR
-> #15); the reminder path is **built but parked**; two small navigation
-> affordances (campaign back-to-list link + calendar deliverables opening the
-> deliverable view) are **built and in review on a branch** (not yet
-> merged/deployed); two high-priority backlog items remain **not built**. Read
-> `CLAUDE.md`, `roadmap.md`, `structure.md`, and `features.md` first — they are
-> current and authoritative. This file orients you and captures the
-> operational/workflow knowledge those docs don't.
+> campaign/deliverable rewrite. **Everything built so far is live in production:**
+> foundation, core UI, calendar bars, deliverable deep linking (PR #15), and the
+> campaign back-to-list link + calendar-deliverable deep-link (PR #16). CI/Deploy
+> actions were bumped off the deprecated Node-20 runtime to Node 24 (PR #17). The
+> reminder path is **built but parked**; two high-priority backlog items remain
+> **not built**; nothing is mid-review right now. Read `CLAUDE.md`, `roadmap.md`,
+> `structure.md`, and `features.md` first — they are current and authoritative.
+> This file orients you and captures the operational/workflow knowledge those docs
+> don't.
 
 ## 1. What this project is
 
@@ -45,6 +45,10 @@ route around it.
   a cold deep link (single-row `useDeliverable` hook, parent campaign embedded);
   title in the breadcrumb; explicit "← back to campaign" link; a campaignId/
   deliverable mismatch → not-found in both page and breadcrumb.
+- **Navigation affordances** (PR #16) — the campaign detail page has a "← Back to
+  campaigns" link; clicking a deliverable chip on the calendar opens the deliverable
+  view (`/campaigns/:id/deliverables/:id`) — campaign **bars** still open the
+  campaign; a keyboard guard stops the chip's Mail button from also navigating.
 
 **Built but PARKED — not in production (`send-reminders`, PR #11 open):**
 - The scheduled reminder edge function is written, locally verified, review-
@@ -52,35 +56,25 @@ route around it.
   and not deployed**; even if merged it stays dormant until a one-time setup runs.
 - Full spec, verification record, and the activation checklist: **`docs/archive/phase4-reminders.md`**.
 
-**Built, in review — this PR (`feat-campaign-back-calendar-deliverable-link`, not yet merged/deployed):**
-- **Campaign back-to-list link** — the campaign detail page now has an explicit
-  "← Back to campaigns" link (mirrors the deliverable page's back link).
-- **Calendar deliverable deep-link** — clicking a deliverable chip on the calendar
-  now opens the deliverable view (`/campaigns/:id/deliverables/:id`) instead of the
-  campaign page; campaign **bars** still open the campaign. Also fixed a latent
-  keyboard bug (Enter/Space on the chip's Mail button no longer also navigates).
-  Client-only — no schema/migration. Runtime-verified locally (6/6 Playwright).
-
 **Queued, NOT built (high-priority backlog — `features.md` → High priority):**
 - (1) deliverable start+end dates **replacing `due_date`** (becomes calendar
   spans/bars), (2) table/"exploded" grid view. Build order 1 → 2.
 
 **Low priority / deferred:** campaign templates, the parked reminders, stretch UI
-(week view, text wrapping, drawer). See `features.md` → Low priority.
+(week view, text wrapping, drawer), and a new "filter campaigns by category on the
+campaigns tab" idea (PR #17 added it to the backlog; mirrors the calendar's category
+filter). See `features.md` → Low priority.
 
 ## 3. Open PRs / branch state
 
 - **PR #11** — `phase4-reminders`: the parked reminder feature. Left open
-  intentionally; **currently CONFLICTING** with `main` (its `features.md`/
-  `structure.md` edits are superseded by the docs reorg). That's expected —
-  leave it; when un-parking, rebase onto `main` and drop the stale doc edits.
-- **PR #15** (`feat-deliverable-deep-linking`) — deliverable deep linking — is
-  **merged** (`main` tip `c481748`); branch deleted.
-- **`feat-campaign-back-calendar-deliverable-link`** — this branch: campaign
-  back-to-list link + calendar deliverable deep-link, cut fresh from `main`. PR
-  pending; the owner opens and merges it.
-- **PR #14** (`docs-high-priority-backlog`) is **merged** — `main` tip is its
-  merge commit (`7a439d5`). Everything else is merged too.
+  intentionally; **currently CONFLICTING** with `main` (its `features.md` /
+  `structure.md` edits are superseded by later docs). That's expected — leave it;
+  when un-parking, rebase onto `main` and drop the stale doc edits.
+- **Everything else is merged.** Recent: PR #14 (backlog docs), #15 (deliverable
+  deep linking), #16 (campaign back link + calendar deliverable deep-link), #17 (CI
+  Node-24 action bumps + one low-pri backlog item). `main` tip is `787d85d` (the #17
+  merge); merged head branches are auto-deleted.
 
 ## 4. Data model & code map (detail in roadmap.md / structure.md)
 
@@ -140,15 +134,25 @@ route around it.
   then `npm run dev`. **Delete `.env.local` afterward** so `npm run dev` uses the
   owner's live `.env`. The function env for `functions serve` lives in
   `supabase/functions/.env` (gitignored).
-- **Browser checks:** Playwright is installed into `node_modules` with `--no-save`
-  (not in package.json). Drive headless Chromium from a temp script *inside the
-  project dir* (so it resolves `node_modules`), and delete the script + any
-  `.env.local` after. The Phase 3 calendar-bars pass is the template (11 checks +
-  screenshots).
+- **Browser checks (recipe that works):** Docker must be running, then
+  `npx supabase start`. There is **no `psql` on the host** — seed/inspect the DB via
+  `docker exec -i supabase_db_Prototype_Marketing_Calendar psql -U postgres -d postgres`
+  (local keys are deterministic; the publishable key prints in `npx supabase status`).
+  Playwright is in `node_modules` (`--no-save`, not in package.json); drive headless
+  Chromium from a temp `.mjs` *inside the project dir* (so it resolves
+  `node_modules`). Seed throwaway rows with fixed UUIDs, assert, then **clean up**:
+  delete the rows, remove the temp script + `.env.local`, and `npx supabase stop`.
+  Recent templates: the PR #15 deep-link pass (8/8 checks) and PR #16 nav pass (6/6).
 - **Deploy (`.github/workflows/deploy.yml`, on push to `main`):** `supabase db
   push` (applies migrations — **destructive ones included**), deploy
   `schedule-email`, build + deploy frontend to Cloudflare Pages. The
-  `send-reminders` deploy step exists only in PR #11.
+  `send-reminders` deploy step exists only in PR #11. **CI + Deploy actions run on
+  Node 24** (PR #17: checkout→v6, setup-node→v6, supabase/setup-cli→v2,
+  cloudflare/wrangler-action→v4; the build steps' `node-version: 20` is separate and
+  unchanged). To inspect a run's warning annotations:
+  `gh api repos/jacksonlipscomb/marketing_calendar/check-runs/<job_id>/annotations`.
+  The Vite "chunk > 500 kB" build line is a known, accepted informational warning
+  (not worth code-splitting for this prototype).
 - **One-time prod setup:** done — anon sign-ins, `RESEND_API_KEY`,
   `ALLOWED_RECIPIENT_EMAIL`, migrations, `schedule-email`. NOT done (parked with
   reminders) — `CRON_SECRET`, Vault `cron_secret`, pg_cron + pg_net, the cron
@@ -178,13 +182,14 @@ route around it.
 
 ## 8. Likely next task
 
-The high-priority backlog (`features.md` → High priority), in order 1 → 2 (the
-former item 1, deliverable deep linking, is built and in review).
-Heads-up for the next item — deliverable start/end replacing `due_date`: it carries
-a **destructive-ish migration** (drops `due_date`), reworks the calendar
+The high-priority backlog (`features.md` → High priority), in order 1 → 2. (The
+deliverable deep-link and navigation work that used to head this list is now
+merged/live.) Heads-up for item 1 — deliverable start/end replacing `due_date`: it
+carries a **destructive-ish migration** (drops `due_date`), reworks the calendar
 (deliverables become bars), and **breaks the parked `send-reminders` code + its
 `due_date` index** — so that PR needs the destructive-change callout, and
 un-parking reminders afterward means pointing the function at `start`/`end`. The
 bound between deliverable and campaign dates must be guarded on **both**
 client-written paths (deliverable trigger + campaign-date-change guard), with
-atomic auto-clamp. Details in the backlog entry.
+atomic auto-clamp. Details in the backlog entry. (Cheap low-pri alternative for a
+quick win: the new "filter campaigns by category on the campaigns tab" item.)
