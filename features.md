@@ -22,9 +22,9 @@ Shipped and deployed via merge to `main`. Verification records, acceptance crite
 
 ## Built, in review (not yet merged)
 
-Code-complete on a branch with static checks green, awaiting merge + runtime verification — **not yet live in production.** Each entry moves up to Implemented on deploy.
+Code-complete on a branch, static checks green and runtime-verified locally, awaiting merge + deploy — **not yet live in production.** Each entry moves up to Implemented on deploy.
 
-- **Deliverable deep linking + back affordance** — branch `feat-deliverable-deep-linking` (2026-06-14). The deliverable route loads standalone on a cold deep link via a single-row `useDeliverable` hook (parent campaign embedded), shows the deliverable's **title** in the breadcrumb, and carries an explicit "← back to campaign" link. A stale URL whose `campaignId` doesn't match the deliverable shows not-found in both the page and the breadcrumb (the real title is never surfaced under the wrong campaign). Client-only — no schema/migration. *Decisions (mine):* the edit page doubles as the detail view (combined detail+edit, no separate read-only route); a campaign mismatch shows not-found rather than redirecting. *Verification:* `typecheck`/`lint`/`build` green; **not yet** runtime-verified (cold load, RLS, stale-mismatch, breadcrumb title) or deployed.
+- **Deliverable deep linking + back affordance** — branch `feat-deliverable-deep-linking` (2026-06-14). The deliverable route loads standalone on a cold deep link via a single-row `useDeliverable` hook (parent campaign embedded), shows the deliverable's **title** in the breadcrumb, and carries an explicit "← back to campaign" link. A stale URL whose `campaignId` doesn't match the deliverable shows not-found in both the page and the breadcrumb (the real title is never surfaced under the wrong campaign). Client-only — no schema/migration. *Decisions (mine):* the edit page doubles as the detail view (combined detail+edit, no separate read-only route); a campaign mismatch shows not-found rather than redirecting. *Verification:* `typecheck`/`lint`/`build` green; **runtime-verified locally** (2026-06-14, local Supabase stack — 8/8 Playwright checks: warm click-through, cold deep link, stale-campaign mismatch → not-found with no title leaked, bogus id, browser-back, edit round-trip); **not yet deployed**.
 
 ## High priority
 
