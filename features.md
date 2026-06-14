@@ -10,7 +10,7 @@ Ship **50–80% of the features well enough to tell 100% of the story**. The sto
 
 Three tiers — **Implemented** (live in production), **High priority** (queued to build next), **Low priority** (deferred / parked / stretch). Items carry their build state. Earlier this file tracked a numbered phase sequence; that history lives in git and the merged PRs.
 
-**Current state (2026-06-13):** the foundation, core UI, and calendar bars are live. Nothing is queued as high priority. Everything remaining — including the built-but-parked reminder emails — is low priority.
+**Current state (2026-06-13):** the foundation, core UI, and calendar bars are live. Three items are queued as high priority (deliverable deep linking, deliverable start/end dates, table view — see below). Everything else — including the built-but-parked reminder emails — is low priority.
 
 ## Implemented (live in production)
 
@@ -22,7 +22,40 @@ Shipped and deployed via merge to `main`. Verification records, acceptance crite
 
 ## High priority
 
-_None right now._ When something is queued to build next, it goes here.
+Three items queued to build next, in order — **1 → 2 → 3**. Item 1 is mostly polish on scaffolding that already exists; item 2 is bigger than it looks (it reworks the calendar and ripples into the parked reminder path); item 3 is a real feature and the largest of the three. Each entry notes what it touches in the codebase.
+
+### 1. Deliverable deep linking + back affordance — *contained*
+
+Each deliverable already has its own addressable route and works on browser-back; the gap is loading cleanly when landed on cold, plus in-app orientation.
+
+- **Already in place** (don't rebuild): the route `/campaigns/:campaignId/deliverables/:deliverableId` ([campaigns.$id.deliverables.$deliverableId.tsx](src/routes/campaigns.$id.deliverables.$deliverableId.tsx)), URL-derived breadcrumbs ([Breadcrumbs.tsx](src/components/Breadcrumbs.tsx)), the SPA `_redirects` fallback, and working browser-back via real routes.
+- **The actual work**: the page loads the campaign's *whole* deliverable list + `.find()` and never loads campaign metadata itself. Add a single-row `useDeliverable(id)` hook (joined to its campaign) so it loads standalone on a cold hit; show the deliverable's **title** in the breadcrumb (today it reads "Edit deliverable"); add an explicit "← back to campaign" link. *Open sub-decision:* a separate read-only detail view vs. the existing edit page serving as the detail view.
+- **URL consistency**: the route carries both `campaignId` and `deliverableId` but the fetch keys off `deliverableId` alone — when `deliverable.campaign_id !== campaignId` (stale/hand-edited URL), redirect to the correct campaign URL or show not-found; never render a deliverable under the wrong campaign's breadcrumb/back link.
+- **Touches**: [deliverables.ts](src/lib/deliverables.ts) (new hook), the deliverable route file, Breadcrumbs.tsx.
+
+### 2. Deliverable start + end dates (replaces `due_date`) — *bigger than it looks*
+
+Deliverables become dated spans instead of single-day items, bounded by their campaign's window.
+
+- **Decided**: add `start_date` + `end_date`, **remove `due_date`**; both required; date-only. Constraints: `start >= campaign.start`, `end <= campaign.end`, `start <= end`. Campaigns stay bounded (`end_date` required), so a deliverable's end is always bounded.
+- **Enforcement guards BOTH client-written paths** (campaigns and deliverables are both written directly under RLS — no edge function — so Zod/CHECK alone can't protect the cross-table bound):
+  - deliverable insert/update → a trigger that looks up the campaign and rejects out-of-bounds (a CHECK can't reference `campaigns`);
+  - campaign date update → a guard that rejects (or atomically clamps) a `start`/`end` shrink that would orphan existing deliverables.
+  - Zod in the form stays as the UX layer, not the integrity guarantee.
+- **Cascade UX**: when a campaign date edit would push deliverables out of bounds, warn on save and offer auto-clamp or manual fix. **Auto-clamp must be atomic** — the campaign update and the child-deliverable clamp happen in one transaction/RPC (the same one as the campaign-side guard), so a partial apply can never leave orphaned children.
+- **Calendar rework (the real effort)**: [CalendarMonth.tsx](src/components/CalendarMonth.tsx) plots deliverable chips by `due_date`; as spans they render as **bars alongside the campaign bars**. The deliverables range query becomes an overlap query on start/end (mirroring `useCampaignsInRange` in [campaigns.ts](src/lib/campaigns.ts)).
+- **Parked-reminder ripple**: `send-reminders` (PR #11) and the partial index `deliverables_reminder_idx (due_date) where reminded_at is null` both key off `due_date`. The migration must rebuild that index on the new date column, and **un-parking reminders later means choosing `start` or `end` to fire on** — see [docs/archive/phase4-reminders.md](docs/archive/phase4-reminders.md).
+- **Touches**: a new migration (add start/end, backfill from `due_date`, drop `due_date`, `deliverables_dates_check`, rebuilt reminder index, the two bound guards), `database.types.ts`, [schemas.ts](src/lib/schemas.ts) (`deliverableFormSchema` + `deliverablePayload`), [DeliverableForm.tsx](src/components/DeliverableForm.tsx), the new/edit deliverable pages, deliverables.ts (range → overlap, ordering), CalendarMonth.tsx, [campaigns.$id.tsx](src/routes/campaigns.$id.tsx) (show the start–end window).
+
+### 3. Table / spreadsheet "exploded" view — *a feature, the largest item*
+
+One flat, sortable, filterable, exportable grid of everything.
+
+- **Grain**: one row = one deliverable, with parent campaign columns denormalized onto the row (grouped/nested rows break column sort). Columns: campaign name/start/end/category/status/owners; deliverable name/start/end/status/owners.
+- **Depends on** item 1 (rows link into the deliverable deep link) and item 2 (deliverable start/end columns) — which is why it's last.
+- **The work**: a new route (e.g. `/table`) + nav link in [__root.tsx](src/routes/__root.tsx) + a Breadcrumbs case + registration in [router.tsx](src/router.tsx); a denormalized query (all deliverables joined with campaign columns, flattened); per-column sort + filter; CSV export of the **current filtered/sorted view** (default), client-side, no dependency (xlsx only if formatting/multi-sheet is ever needed).
+- **Build decision** (flag): hand-built vs. **TanStack Table** (headless; fits the existing TanStack Router/Query stack) — recommend TanStack Table for the sort/filter plumbing at this scope.
+- **Touches**: a new route file, router.tsx, __root.tsx, Breadcrumbs.tsx, a new query hook (deliverables.ts or a new `lib/table.ts`), a small CSV helper.
 
 ## Low priority
 
@@ -32,10 +65,12 @@ Deferred, parked, or stretch — none blocks the demo story.
 
 Cheap once the model exists; shows product thinking and saves real season setup time.
 
-- `000N_templates.sql`: `templates` + `template_deliverables` (day-offsets from campaign start), RLS + grants, seeded with two templates: **recruiting** (the 4 standard deliverables) and **fundraising** (announcement, reminder, thank-you).
-- "Create from template" flow: pick template → prefills name/category/goal/segmentation/duration and the deliverable set with computed due dates → fully editable before and after saving (a starting point, not a lock).
+> **Depends on High-priority item 2** (deliverable dates): templates must use the same date model deliverables end up with. The offsets below assume the start/end span that replaces `due_date` — build templates *after* item 2 lands, or revisit this entry if that decision changes.
 
-**Acceptance:** creating from the recruiting template yields a campaign with 4 deliverables dated relative to the chosen start date; editing or deleting any of them works like any hand-made campaign.
+- `000N_templates.sql`: `templates` + `template_deliverables` (start + end day-offsets from campaign start), RLS + grants, seeded with two templates: **recruiting** (the 4 standard deliverables) and **fundraising** (announcement, reminder, thank-you).
+- "Create from template" flow: pick template → prefills name/category/goal/segmentation/duration and the deliverable set with computed start/end dates (campaign start + each offset, clamped to the campaign window) → fully editable before and after saving (a starting point, not a lock).
+
+**Acceptance:** creating from the recruiting template yields a campaign with 4 deliverables whose start/end fall inside the chosen campaign window; editing or deleting any of them works like any hand-made campaign.
 
 **Cut line:** template management UI — seeded templates are data; creating/editing templates themselves can stay SQL-only for the demo.
 

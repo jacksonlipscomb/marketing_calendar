@@ -1,113 +1,170 @@
-# Handoff — Marketing Calendar PoC (finish Phase 2: features 4 & 5)
+# Handoff — Marketing Calendar (campaign/deliverable build)
 
-> **Status: COMPLETE (2026-06-10).** F4 (`CategoryFilter`) and F5 (`UpcomingSends`) are
-> built, wired into `src/routes/index.tsx`, and verified headless (Playwright) against
-> the local stack: filter toggles hide/show events, the panel lists `scheduled` jobs and
-> refreshes after scheduling through the edge function, and the client-write boundary on
-> `email_jobs` still holds (insert denied by RLS). This document is kept for history;
-> `roadmap.md` reflects current state.
-
-Pick-up document for the agent finishing implementation. Self-contained, but read
-`CLAUDE.md`, `roadmap.md`, and `structure.md` first — they are current and authoritative.
+> **Current as of 2026-06-13.** The original events-based PoC was replaced by a
+> campaign/deliverable rewrite. Phases 1–3 are **live in production**; the
+> reminder path is **built but parked**; a high-priority backlog is queued but
+> **not built**. Read `CLAUDE.md`, `roadmap.md`, `structure.md`, and
+> `features.md` first — they are current and authoritative. This file orients
+> you and captures the operational/workflow knowledge those docs don't.
 
 ## 1. What this project is
-A marketing calendar for a youth rowing club (NorCal). The **one claim it exists to
-prove**: scheduling an email for a calendar event routes through a **Supabase Edge
-Function** that holds the sending secret, validates, persists the `email_jobs` row
-with the service role, and records the send result. The browser writes `events`
-directly (RLS-governed) but **never writes `email_jobs`** — that asymmetry is the
-whole point.
+
+A marketing calendar for a youth rowing club (NorCal), organized around
+**campaigns** (multi-week efforts with a goal, segmentation, date range, and
+owners) that break into **deliverables** (dated, owned, statused pieces of work).
+Four categories: recruiting, retention, regatta, fundraising.
+
+**The one claim it exists to prove:** all email sending routes through **Supabase
+Edge Functions** that hold the sending secret, validate, persist the `email_jobs`
+row with the service role, and record the result. The browser writes
+`campaigns`/`deliverables` directly (RLS-governed) but **never writes
+`email_jobs`** — it reads them only. That asymmetry is the whole point; don't
+route around it.
+
+- Live site: https://marketing-calendar-e7w.pages.dev
+- Repo: `github.com/jacksonlipscomb/marketing_calendar`
+- `main` is the production branch; merging to it deploys (see §6).
 
 ## 2. Where things stand
-- **Phase 0** (scaffold, migrations, function): done.
-- **Phase 1 vertical slice** (F1 calendar render, F2 event CRUD, F3 schedule-email
-  through the function): **done and verified end-to-end on the live project** — a
-  real email sends and an `email_jobs` row persists.
-- **Phase 2 breadth: done (2026-06-10).**
-  - F1 category **color-coding**: done in `CalendarMonth.tsx`.
-  - F4 — filter by category: done (`CategoryFilter.tsx`).
-  - F5 — upcoming sends panel: done (`useUpcomingSends` + `UpcomingSends.tsx`).
 
-Repo: `github.com/jacksonlipscomb/marketing_calendar`.
+**Live on `main` (in production):**
+- **Foundation** — destructive reset migration `0004_reset_campaigns.sql` (dropped
+  the PoC `events`/`email_jobs`, created `campaigns` + `deliverables` +
+  re-pointed `email_jobs(deliverable_id)`); multi-owner `text[]`; `schedule-email`
+  re-pointed to `deliverable_id`; campaign/deliverable CRUD.
+- **Core UI** — campaign list with range filter (inclusive overlap) + status
+  filter; campaign detail with deliverable status filter and derived completion %
+  (never stored); calendar; deep-linkable routes with URL breadcrumbs.
+- **Calendar bars** — campaigns render as lane-stacked bars on the month grid,
+  deliverables listed below; category filter hides both.
 
-## 3. The two features to build (historical — both were built as specified below)
+**Built but PARKED — not in production (`send-reminders`, PR #11 open):**
+- The scheduled reminder edge function is written, locally verified, review-
+  hardened, but parked by the owner (not needed for the demo). It is **not merged
+  and not deployed**; even if merged it stays dormant until a one-time setup runs.
+- Full spec, verification record, and the activation checklist: **`docs/archive/phase4-reminders.md`**.
 
-### F4 — CategoryFilter (`src/components/CategoryFilter.tsx`)
-- The store already has everything: `useUiStore()` exposes
-  `activeCategories: EventCategory[]` (defaults to all four) and
-  `toggleCategory(category)`. `CalendarMonth.tsx` **already filters** what it renders
-  by `activeCategories` — so you only need the toggle UI; the calendar responds
-  automatically.
-- Render four toggles for `EVENT_CATEGORIES` (from `src/lib/database.types.ts`). Use
-  the category colors already defined as CSS vars in `src/index.css`
-  (`--cat-recruiting`, `--cat-retention`, `--cat-regatta`, `--cat-fundraising`) —
-  same pattern the calendar chips use (`backgroundColor: var(--cat-${category})`).
-  Muted/outlined when inactive.
+**Queued, NOT built (high-priority backlog, PR #14 — this branch):**
+- (1) deliverable deep linking + back affordance, (2) deliverable start+end dates
+  **replacing `due_date`** (becomes calendar spans/bars), (3) table/"exploded"
+  grid view. Build order 1 → 2 → 3. Full entries with codebase interactions:
+  `features.md` → High priority.
 
-### F5 — UpcomingSends (`src/components/UpcomingSends.tsx`)
-- Consume `useUpcomingSends()` (already in `src/lib/emailJobs.ts`). It returns
-  `UpcomingSend[]` = `{ id, subject, recipient, scheduled_for, status, events: { title } | null }`,
-  `email_jobs` where `status='scheduled'`, ordered by `scheduled_for` asc. **Read-only.**
-- `useScheduleEmail` already invalidates the `["upcoming-sends"]` query key, so the
-  panel refreshes after a new schedule.
-- Include a header note that these are **queued only and NOT auto-delivered in this
-  PoC** (there is no worker — see guardrails). Use the shadcn `Card` for the panel.
+**Low priority / deferred:** campaign templates, the parked reminders, stretch UI
+(week view, text wrapping, drawer). See `features.md` → Low priority.
 
-### Wire both into `src/routes/index.tsx`
-The `CalendarPage` is the composition root — currently renders the hint text,
-`CalendarMonth`, `EventDialog`, `ScheduleEmailDialog`. Suggested layout:
-`CategoryFilter` above the calendar; a two-column grid with `CalendarMonth` as main
-and `UpcomingSends` as a side panel (stack on small screens).
+## 3. Open PRs / branch state
 
-## 4. Stack & conventions to match (already established)
-- Vite + React 19 + TS; **Tailwind v4** (no `tailwind.config` — wired via
-  `@tailwindcss/vite` + `@import "tailwindcss"` in `index.css`); **shadcn**
-  primitives in `src/components/ui/` (button, badge, card, dialog, input, label,
-  select, textarea); `@/` path alias → `src/`.
-- TanStack **Router** (code-based, `src/router.tsx`) + **Query**; **Zustand**
-  (`src/lib/uiStore.ts`); **react-hook-form + Zod v4** (`src/lib/schemas.ts`); **date-fns**.
-- Data access lives in `src/lib/events.ts` and `src/lib/emailJobs.ts` (TanStack
-  Query hooks over the typed `supabase` client). Follow those patterns; don't query
-  Supabase ad hoc in components.
-- Auth: anonymous sign-in (`src/lib/auth.ts`), already wired in `main.tsx`.
+- **PR #11** — `phase4-reminders`: the parked reminder feature. Left open
+  intentionally; **currently CONFLICTING** with `main` (its `features.md`/
+  `structure.md` edits are superseded by the docs reorg). That's expected —
+  leave it; when un-parking, rebase onto `main` and drop the stale doc edits.
+- **PR #14** — `docs-high-priority-backlog`: the backlog docs (and this HANDOFF
+  update). Docs-only.
+- Everything else is merged. `main` tip after the docs reorg is PR #13's merge.
 
-## 5. Non-negotiable guardrails (do not violate)
-- **Never write `email_jobs` from the client.** Reads-only; all writes go through
-  `schedule-email` (service role). The missing write policy on `email_jobs` is
-  intentional — don't add one. (F5 only reads — fine.)
-- **Grants matter (hard-won):** hosted Supabase does NOT auto-grant table
-  privileges, and RLS only filters *on top of* grants. Grants are explicit in
-  `0002_grants.sql` (`authenticated`) and `0003_grants_service_role.sql`
-  (`service_role`). **F4/F5 need no new migration** — they only read
-  `events`/`email_jobs` as `authenticated`, already granted. If you ever add access
-  for a new role, grant it (never grant `anon`).
-- Recipient allowlist is enforced **server-side** (`ALLOWED_RECIPIENT_EMAIL`); the
-  client's `VITE_OWNER_EMAIL` is display-only.
-- **No scheduler:** future-dated jobs persist as `scheduled` but are never auto-sent.
-  F5's copy must not imply delayed delivery works.
-- Keep RLS real; no "allow all".
+## 4. Data model & code map (detail in roadmap.md / structure.md)
 
-## 6. How to run & verify
-- `npm run lint`, `npm run typecheck`, `npm run build` must stay green (CI runs them).
-- Local full-stack test: `npx supabase start` (applies migrations 0001–0003,
-  including grants, and enables anonymous sign-ins via `config.toml`), create a local
-  `.env.local` (gitignored) pointing at the local stack —
-  `VITE_SUPABASE_URL=http://127.0.0.1:54321`,
-  `VITE_SUPABASE_ANON_KEY=<publishable key from \`npx supabase status\`>`,
-  `VITE_OWNER_EMAIL=allowed@example.com` — then `npm run dev`. The local DB already
-  has seed data from prior testing (a June-2026 regatta event and a `scheduled`
-  "Join NorCal Rowing" job), handy for exercising F5 immediately.
-- A headless browser pass (Playwright) is the expected final check: toggle a category
-  → events hide/show; confirm the scheduled job appears in the panel.
+- **Tables:** `campaigns`, `deliverables` (FK→campaigns, cascade), `email_jobs`
+  (FK→deliverables, cascade). **Enums:** `campaign_category`, `campaign_status`
+  (planned/in_progress/done), `deliverable_status` (backlog/in_progress/complete),
+  `email_status` (draft/scheduled/sent/failed).
+- **Migrations:** `0001`–`0003` (PoC, applied long ago), `0004_reset_campaigns.sql`
+  (the live reset). Never edit an applied migration; new schema = new file.
+- **Edge functions:** `supabase/functions/schedule-email/` (live),
+  `supabase/functions/send-reminders/` (parked, exists only in PR #11).
+- **Frontend (`src/`):** hooks in `lib/` (`campaigns.ts`, `deliverables.ts`,
+  `emailJobs.ts`, `schemas.ts`, `uiStore.ts`, `supabase.ts`, `auth.ts`, `env.ts`,
+  hand-written `database.types.ts`); components incl. `CalendarMonth`,
+  `CampaignForm`, `DeliverableForm`, `OwnersInput`, `RangeFilter`, `StatusFilter`,
+  `CategoryFilter`, `Breadcrumbs`, `ConfirmDeleteButton`, `ScheduleEmailDialog`,
+  `UpcomingSends`; code-based routes in `router.tsx` + `routes/`.
+- **Stack:** Vite + React + TS; **Tailwind v4** (no config; `@tailwindcss/vite` +
+  `@import "tailwindcss"` in `index.css`); **shadcn** in `components/ui/`;
+  TanStack **Router** (code-based) + **Query**; **Zustand**; **react-hook-form +
+  Zod v4**; **date-fns** (no calendar library); `@/` → `src/`. Data access lives
+  in the `lib/` hooks — don't query Supabase ad hoc in components.
 
-## 7. Owner/project config (already done — don't redo)
-On the live project: anonymous sign-ins enabled; `RESEND_API_KEY` +
-`ALLOWED_RECIPIENT_EMAIL` set; migrations 0001–0003 applied; real function deployed;
-send verified. The owner's `.env` has `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
-(publishable), `VITE_OWNER_EMAIL` (all aligned to their Resend account email).
+## 5. Non-negotiable guardrails (from CLAUDE.md invariants — do not violate)
 
-## 8. How the owner wants you to work (from CLAUDE.md)
-- **Plan mode first** — produce a plan, wait for approval before editing files.
-- Explain every non-trivial block; the owner reviews each one.
-- When a choice is yours (not the owner's), say so explicitly.
-- F5 is the cut-first feature if time runs short. Both are low-risk.
+1. All `email_jobs` writes go through the edge functions (`schedule-email`, and
+   `send-reminders` when un-parked) with the service role. Client reads only.
+2. The functions are the point — never write email rows from the client or send
+   reminders from anywhere else.
+3. RLS stays real. The missing insert/update/delete policy on `email_jobs` is
+   intentional — don't add one; no "allow all".
+4. Secrets, two homes: everything the Deno runtime reads (`RESEND_API_KEY`,
+   `ALLOWED_RECIPIENT_EMAIL`, `CRON_SECRET`, `REMINDER_LEAD_DAYS`) → edge function
+   secrets; the cron caller secret (`cron_secret`) → **Vault**. Provider key never
+   in Vault/client/git.
+5. Recipient allowlist enforced server-side (`ALLOWED_RECIPIENT_EMAIL`, fail
+   closed). Every email goes only to that address; `owners` are display names, not
+   addresses.
+6. Reminders never double-send: select `reminded_at is null`, set `reminded_at`
+   only after a successful send (the parked function writes it *first* among the
+   post-send updates — see the archive doc).
+- **Grants are explicit** (hosted Supabase doesn't auto-grant; RLS filters on top
+  of grants). Every table-creating migration grants `authenticated` +
+  `service_role`, never `anon`.
+- **Don't store completion %** — derived from deliverable statuses in the hook.
+- **Overlap query is inclusive:** `start_date <= range_end AND end_date >= range_start`.
+  Containment silently drops straddling campaigns.
+
+## 6. How to run, verify, deploy
+
+- `npm run lint`, `npm run typecheck`, `npm run build` must stay green (CI runs
+  them on PRs via `.github/workflows/ci.yml`).
+- **Local full stack:** `npx supabase start` applies migrations + enables anon
+  sign-ins (via `config.toml`). Create a gitignored `.env.local` pointing at the
+  local stack (`VITE_SUPABASE_URL=http://127.0.0.1:54321`, `VITE_SUPABASE_ANON_KEY=`
+  the publishable key from `npx supabase status`, `VITE_OWNER_EMAIL=allowed@example.com`)
+  then `npm run dev`. **Delete `.env.local` afterward** so `npm run dev` uses the
+  owner's live `.env`. The function env for `functions serve` lives in
+  `supabase/functions/.env` (gitignored).
+- **Browser checks:** Playwright is installed into `node_modules` with `--no-save`
+  (not in package.json). Drive headless Chromium from a temp script *inside the
+  project dir* (so it resolves `node_modules`), and delete the script + any
+  `.env.local` after. The Phase 3 calendar-bars pass is the template (11 checks +
+  screenshots).
+- **Deploy (`.github/workflows/deploy.yml`, on push to `main`):** `supabase db
+  push` (applies migrations — **destructive ones included**), deploy
+  `schedule-email`, build + deploy frontend to Cloudflare Pages. The
+  `send-reminders` deploy step exists only in PR #11.
+- **One-time prod setup:** done — anon sign-ins, `RESEND_API_KEY`,
+  `ALLOWED_RECIPIENT_EMAIL`, migrations, `schedule-email`. NOT done (parked with
+  reminders) — `CRON_SECRET`, Vault `cron_secret`, pg_cron + pg_net, the cron
+  schedule. Activation steps: `docs/archive/phase4-reminders.md`.
+
+## 7. How the owner works (learned this build — match it)
+
+- **Plan mode first.** Produce a plan, wait for approval before editing files.
+  Explain every non-trivial block; the owner reviews each one. When a choice is
+  yours, say so explicitly.
+- **Review cadence:** after most plans and PRs the owner runs an external review
+  and pastes *"Address findings if valid and valuable: …"*. Evaluate each finding,
+  fix the valid/valuable ones, push to the same PR, and say plainly which you
+  declined and why.
+- **Publishing:** you push feature branches and open PRs; **the owner merges.**
+  Hand them the PR link. Don't merge or push to `main` yourself.
+- **Branching:** cut every branch fresh from `main` — **do not stack PRs.** Stacked
+  PRs in this repo don't auto-retarget, and deleting an open PR's base branch
+  *closes* the PR (it happened — #6 had to be reopened as #9). The owner deletes
+  head branches on merge.
+- **Destructive migrations:** CI `db push` applies them to prod on merge. Any PR
+  carrying one needs a plain-words destructive-change callout, and the owner
+  approves it knowing that (as with `0004`).
+- **Verification honesty:** state exactly what was tested. A local function
+  invocation is **not** proof the cron firing works; lint/build green is not proof
+  the UI renders. Separate "verified" from "not verified, needs prod."
+
+## 8. Likely next task
+
+The high-priority backlog (`features.md` → High priority), in order 1 → 2 → 3.
+Heads-up for item 2 (deliverable start/end replacing `due_date`): it carries a
+**destructive-ish migration** (drops `due_date`), reworks the calendar
+(deliverables become bars), and **breaks the parked `send-reminders` code + its
+`due_date` index** — so that PR needs the destructive-change callout, and
+un-parking reminders afterward means pointing the function at `start`/`end`. The
+bound between deliverable and campaign dates must be guarded on **both**
+client-written paths (deliverable trigger + campaign-date-change guard), with
+atomic auto-clamp. Details in the backlog entry.
