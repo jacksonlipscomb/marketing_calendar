@@ -59,6 +59,10 @@ One flat, sortable, filterable, exportable grid of everything.
 
 Deferred, parked, or stretch — none blocks the demo story.
 
+### Filter by category on Campaign View - *not built*
+
+Cheap and easy to build. Add another filter on the campaigns tab that does the same thing as the filter on the Calendar tab: filters campaigns by Recruiting, Retention, Regatta, and Fundraising. This should be an easy implementation.
+
 ### Campaign templates — *not built*
 
 Cheap once the model exists; shows product thinking and saves real season setup time.
