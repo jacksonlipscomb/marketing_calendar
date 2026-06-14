@@ -10,7 +10,7 @@ Ship **50–80% of the features well enough to tell 100% of the story**. The sto
 
 Three tiers — **Implemented** (live in production), **High priority** (queued to build next), **Low priority** (deferred / parked / stretch). Items carry their build state. Earlier this file tracked a numbered phase sequence; that history lives in git and the merged PRs.
 
-**Current state (2026-06-13):** the foundation, core UI, and calendar bars are live. Nothing is queued as high priority. Everything remaining — including the built-but-parked reminder emails — is low priority.
+**Current state (2026-06-13):** the foundation, core UI, and calendar bars are live. Three items are queued as high priority (deliverable deep linking, deliverable start/end dates, table view — see below). Everything else — including the built-but-parked reminder emails — is low priority.
 
 ## Implemented (live in production)
 
@@ -65,10 +65,12 @@ Deferred, parked, or stretch — none blocks the demo story.
 
 Cheap once the model exists; shows product thinking and saves real season setup time.
 
-- `000N_templates.sql`: `templates` + `template_deliverables` (day-offsets from campaign start), RLS + grants, seeded with two templates: **recruiting** (the 4 standard deliverables) and **fundraising** (announcement, reminder, thank-you).
-- "Create from template" flow: pick template → prefills name/category/goal/segmentation/duration and the deliverable set with computed due dates → fully editable before and after saving (a starting point, not a lock).
+> **Depends on High-priority item 2** (deliverable dates): templates must use the same date model deliverables end up with. The offsets below assume the start/end span that replaces `due_date` — build templates *after* item 2 lands, or revisit this entry if that decision changes.
 
-**Acceptance:** creating from the recruiting template yields a campaign with 4 deliverables dated relative to the chosen start date; editing or deleting any of them works like any hand-made campaign.
+- `000N_templates.sql`: `templates` + `template_deliverables` (start + end day-offsets from campaign start), RLS + grants, seeded with two templates: **recruiting** (the 4 standard deliverables) and **fundraising** (announcement, reminder, thank-you).
+- "Create from template" flow: pick template → prefills name/category/goal/segmentation/duration and the deliverable set with computed start/end dates (campaign start + each offset, clamped to the campaign window) → fully editable before and after saving (a starting point, not a lock).
+
+**Acceptance:** creating from the recruiting template yields a campaign with 4 deliverables whose start/end fall inside the chosen campaign window; editing or deleting any of them works like any hand-made campaign.
 
 **Cut line:** template management UI — seeded templates are data; creating/editing templates themselves can stay SQL-only for the demo.
 
