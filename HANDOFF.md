@@ -56,9 +56,20 @@ route around it.
   and not deployed**; even if merged it stays dormant until a one-time setup runs.
 - Full spec, verification record, and the activation checklist: **`docs/archive/phase4-reminders.md`**.
 
+**Built, in review (not yet merged — `features.md` → Built, in review):**
+- **Deliverable start+end dates replacing `due_date`** — branch
+  `feat-deliverable-start-end-dates`. Deliverables become dated spans (calendar
+  bars in a band below the campaign bars); carries the destructive-ish migration
+  `0005_deliverable_dates.sql` (drops `due_date`), a deliverable-bounds trigger +
+  a campaign-shrink guard trigger + the atomic `update_campaign_clamp` RPC, and the
+  campaign date-shrink cascade UX (partial overflow → clamp confirm, fully-outside →
+  blocked). Static checks green; **runtime-verified locally** (local Supabase stack:
+  psql DB-guard checks + 8/8 Playwright UI); prod backfill verified by SQL
+  inspection only; **not yet deployed.**
+
 **Queued, NOT built (high-priority backlog — `features.md` → High priority):**
-- (1) deliverable start+end dates **replacing `due_date`** (becomes calendar
-  spans/bars), (2) table/"exploded" grid view. Build order 1 → 2.
+- table/"exploded" grid view (depends on the start/end work above — supplies its
+  start/end columns).
 
 **Low priority / deferred:** campaign templates, the parked reminders, stretch UI
 (week view, text wrapping, drawer), and a new "filter campaigns by category on the
@@ -182,14 +193,16 @@ filter). See `features.md` → Low priority.
 
 ## 8. Likely next task
 
-The high-priority backlog (`features.md` → High priority), in order 1 → 2. (The
-deliverable deep-link and navigation work that used to head this list is now
-merged/live.) Heads-up for item 1 — deliverable start/end replacing `due_date`: it
-carries a **destructive-ish migration** (drops `due_date`), reworks the calendar
-(deliverables become bars), and **breaks the parked `send-reminders` code + its
-`due_date` index** — so that PR needs the destructive-change callout, and
-un-parking reminders afterward means pointing the function at `start`/`end`. The
-bound between deliverable and campaign dates must be guarded on **both**
-client-written paths (deliverable trigger + campaign-date-change guard), with
-atomic auto-clamp. Details in the backlog entry. (Cheap low-pri alternative for a
-quick win: the new "filter campaigns by category on the campaigns tab" item.)
+**Finish landing the deliverable start/end work** (branch
+`feat-deliverable-start-end-dates`, built + static-green, in review): run the
+local-stack runtime verification, then open the PR with the destructive-change
+callout (migration `0005` drops `due_date`; CI `db push` applies it to prod on
+merge). The PR also **rebuilt the parked reminder index on `end_date`** and
+updated `docs/archive/phase4-reminders.md` — un-parking `send-reminders` later
+means pointing its (still `due_date`-based) selection query at `end_date`.
+
+After that merges, the remaining high-priority item is the **table/"exploded"
+view** (`features.md` → High priority) — it depends on the start/end columns. The
+deep-link and navigation work that used to head the backlog is merged/live.
+(Cheap low-pri alternative for a quick win: the "filter campaigns by category on
+the campaigns tab" item.)

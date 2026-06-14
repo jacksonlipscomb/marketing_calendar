@@ -18,7 +18,9 @@ The manual send path (`schedule-email`) is unaffected and remains live.
 
 ## Feature spec (as built in PR #11)
 
-- `send-reminders` edge function: cron-secret auth (`x-cron-secret` vs `CRON_SECRET`, fail closed, `verify_jwt` off); selects deliverables due within `REMINDER_LEAD_DAYS` (default 3) with `reminded_at is null` on campaigns where `reminders_enabled = true`; sends via Resend; writes one `email_jobs` row per attempt; sets `reminded_at` only after a successful send.
+- `send-reminders` edge function: cron-secret auth (`x-cron-secret` vs `CRON_SECRET`, fail closed, `verify_jwt` off); selects deliverables whose **`end_date`** (the deadline) falls within `REMINDER_LEAD_DAYS` (default 3) with `reminded_at is null` on campaigns where `reminders_enabled = true`; sends via Resend; writes one `email_jobs` row per attempt; sets `reminded_at` only after a successful send.
+
+> **Date-model change since this was built (migration `0005`, 2026-06-14):** deliverables replaced the single `due_date` column with `start_date` + `end_date` spans. The partial reminder index moved `due_date → end_date` (`deliverables_reminder_idx on deliverables (end_date) where reminded_at is null`). **When un-parking, point the function's selection at `end_date`** — PR #11's code still queries the dropped `due_date` and must be updated (the "due within the lead window" / "in-window" wording above already reflects `end_date`).
 - Recipient rule: reminders deliver **only to `ALLOWED_RECIPIENT_EMAIL`**, with owners named in the subject/body (owners are display names; the shared test sender can't deliver elsewhere anyway).
 - `reminders_enabled` per-campaign toggle is already on the campaign form (shipped in Phase 1).
 - `config.toml` gets `[functions.send-reminders] verify_jwt = false`; `deploy.yml` gets a `--no-verify-jwt` deploy step.

@@ -166,6 +166,52 @@ export function useUpdateCampaign() {
   })
 }
 
+// Campaign date-shrink WITH child clamp, in one atomic DB transaction (the
+// update_campaign_clamp RPC, migration 0005). Use this — not useUpdateCampaign —
+// when the new window would push existing deliverables out of bounds: the plain
+// update path is blocked by the campaigns shrink-guard trigger, while this RPC
+// updates the campaign and clamps overflowing children together. It still raises
+// (rejected here) when a child lies ENTIRELY outside the new window. Invalidates
+// deliverables too, since their dates may have moved.
+export function useUpdateCampaignClamp() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (values: {
+      id: string
+      name: string
+      goal: string | null
+      category: CampaignRow["category"]
+      start_date: string
+      end_date: string
+      segmentation: string | null
+      owners: string[]
+      status: CampaignStatus
+      reminders_enabled: boolean
+    }): Promise<CampaignRow> => {
+      const { data, error } = await supabase
+        .rpc("update_campaign_clamp", {
+          p_id: values.id,
+          p_name: values.name,
+          p_goal: values.goal,
+          p_category: values.category,
+          p_start: values.start_date,
+          p_end: values.end_date,
+          p_segmentation: values.segmentation,
+          p_owners: values.owners,
+          p_status: values.status,
+          p_reminders_enabled: values.reminders_enabled,
+        })
+        .single()
+      if (error) throw new Error(error.message)
+      return data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["campaigns"] })
+      qc.invalidateQueries({ queryKey: ["deliverables"] })
+    },
+  })
+}
+
 export function useDeleteCampaign() {
   const qc = useQueryClient()
   return useMutation({

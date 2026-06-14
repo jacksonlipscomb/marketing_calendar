@@ -68,8 +68,12 @@ export function EditDeliverablePage() {
             </Badge>
           </div>
           <p className="text-muted-foreground text-sm">
-            due{" "}
-            {format(new Date(`${deliverable.due_date}T00:00:00`), "MMM d, yyyy")}
+            {format(
+              new Date(`${deliverable.start_date}T00:00:00`),
+              "MMM d, yyyy",
+            )}{" "}
+            –{" "}
+            {format(new Date(`${deliverable.end_date}T00:00:00`), "MMM d, yyyy")}
             {deliverable.owners.length > 0 && (
               <> · {deliverable.owners.join(", ")}</>
             )}
@@ -82,10 +86,13 @@ export function EditDeliverablePage() {
         <DeliverableForm
           submitLabel="Save changes"
           pending={updateDeliverable.isPending}
+          campaignStart={deliverable.campaigns?.start_date}
+          campaignEnd={deliverable.campaigns?.end_date}
           defaultValues={{
             title: deliverable.title,
             details: deliverable.details ?? "",
-            due_date: deliverable.due_date,
+            start_date: deliverable.start_date,
+            end_date: deliverable.end_date,
             owners: deliverable.owners,
             status: deliverable.status,
           }}

@@ -27,11 +27,18 @@ export function DeliverableForm({
   submitLabel,
   onSubmit,
   pending,
+  campaignStart,
+  campaignEnd,
 }: {
   defaultValues?: Partial<DeliverableFormValues>
   submitLabel: string
   onSubmit: (values: DeliverableFormValues) => Promise<void>
   pending: boolean
+  // Campaign window — sets the date inputs' min/max so the picker steers the user
+  // inside bounds. The real guarantee is the DB bounds trigger (migration 0005);
+  // its rejection surfaces through errorMsg below.
+  campaignStart?: string
+  campaignEnd?: string
 }) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
@@ -40,7 +47,8 @@ export function DeliverableForm({
     defaultValues: {
       title: "",
       details: "",
-      due_date: "",
+      start_date: "",
+      end_date: "",
       owners: [],
       status: "backlog",
       ...defaultValues,
@@ -79,36 +87,58 @@ export function DeliverableForm({
 
       <div className="grid grid-cols-2 gap-4">
         <div className="grid gap-2">
-          <Label htmlFor="due_date">Due date</Label>
-          <Input id="due_date" type="date" {...form.register("due_date")} />
-          {errors.due_date && (
-            <p className="text-destructive text-xs">{errors.due_date.message}</p>
+          <Label htmlFor="start_date">Start date</Label>
+          <Input
+            id="start_date"
+            type="date"
+            min={campaignStart}
+            max={campaignEnd}
+            {...form.register("start_date")}
+          />
+          {errors.start_date && (
+            <p className="text-destructive text-xs">
+              {errors.start_date.message}
+            </p>
           )}
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="status">Status</Label>
-          <Controller
-            control={form.control}
-            name="status"
-            render={({ field }) => (
-              <Select
-                value={field.value}
-                onValueChange={(v) => field.onChange(v as DeliverableStatus)}
-              >
-                <SelectTrigger id="status">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {DELIVERABLE_STATUSES.map((s) => (
-                    <SelectItem key={s} value={s} className="capitalize">
-                      {s.replace("_", " ")}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
+          <Label htmlFor="end_date">End date</Label>
+          <Input
+            id="end_date"
+            type="date"
+            min={campaignStart}
+            max={campaignEnd}
+            {...form.register("end_date")}
           />
+          {errors.end_date && (
+            <p className="text-destructive text-xs">{errors.end_date.message}</p>
+          )}
         </div>
+      </div>
+
+      <div className="grid gap-2">
+        <Label htmlFor="status">Status</Label>
+        <Controller
+          control={form.control}
+          name="status"
+          render={({ field }) => (
+            <Select
+              value={field.value}
+              onValueChange={(v) => field.onChange(v as DeliverableStatus)}
+            >
+              <SelectTrigger id="status">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DELIVERABLE_STATUSES.map((s) => (
+                  <SelectItem key={s} value={s} className="capitalize">
+                    {s.replace("_", " ")}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
       </div>
 
       <div className="grid gap-2">

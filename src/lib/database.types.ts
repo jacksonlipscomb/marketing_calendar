@@ -60,7 +60,8 @@ export type Database = {
           campaign_id: string
           title: string
           details: string | null
-          due_date: string
+          start_date: string
+          end_date: string
           owners: string[]
           status: Database["public"]["Enums"]["deliverable_status"]
           reminded_at: string | null
@@ -72,7 +73,8 @@ export type Database = {
           campaign_id: string
           title: string
           details?: string | null
-          due_date: string
+          start_date: string
+          end_date: string
           owners?: string[]
           status?: Database["public"]["Enums"]["deliverable_status"]
           reminded_at?: string | null
@@ -84,7 +86,8 @@ export type Database = {
           campaign_id?: string
           title?: string
           details?: string | null
-          due_date?: string
+          start_date?: string
+          end_date?: string
           owners?: string[]
           status?: Database["public"]["Enums"]["deliverable_status"]
           reminded_at?: string | null
@@ -151,7 +154,26 @@ export type Database = {
       }
     }
     Views: Record<never, never>
-    Functions: Record<never, never>
+    Functions: {
+      // Atomic campaign shrink + child-deliverable clamp (migration 0005). Updates
+      // the campaign and clamps overflowing deliverables in one transaction; raises
+      // when a deliverable lies entirely outside the new window (un-clampable).
+      update_campaign_clamp: {
+        Args: {
+          p_id: string
+          p_name: string
+          p_goal: string | null
+          p_category: Database["public"]["Enums"]["campaign_category"]
+          p_start: string
+          p_end: string
+          p_segmentation: string | null
+          p_owners: string[]
+          p_status: Database["public"]["Enums"]["campaign_status"]
+          p_reminders_enabled: boolean
+        }
+        Returns: Database["public"]["Tables"]["campaigns"]["Row"]
+      }
+    }
     Enums: {
       campaign_category: "recruiting" | "retention" | "regatta" | "fundraising"
       campaign_status: "planned" | "in_progress" | "done"
