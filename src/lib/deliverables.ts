@@ -73,6 +73,34 @@ export function useCampaignDeliverables(campaignId: string) {
   })
 }
 
+// A single deliverable plus its parent campaign's name. Mirrors the embed shape
+// of CalendarDeliverable above (campaign embedded as a to-one object).
+export type DeliverableWithCampaign = DeliverableRow & {
+  campaigns: { name: string } | null
+}
+
+// One deliverable by its OWN id (not via the campaign list + .find()), so the
+// deliverable page loads standalone on a cold deep link. The embedded campaign
+// name powers the "back to campaign" label without a second round-trip. The key
+// is a sub-key of ["deliverables"], so the existing deliverable mutations'
+// invalidateQueries({ queryKey: ["deliverables"] }) refresh it by prefix match.
+// maybeSingle → null when the id doesn't exist (drives the not-found branch).
+export function useDeliverable(id: string) {
+  return useQuery({
+    queryKey: ["deliverables", "one", id],
+    queryFn: async (): Promise<DeliverableWithCampaign | null> => {
+      const { data, error } = await supabase
+        .from("deliverables")
+        .select("*, campaigns(name)")
+        .eq("id", id)
+        .returns<DeliverableWithCampaign[]>()
+        .maybeSingle()
+      if (error) throw new Error(error.message)
+      return data
+    },
+  })
+}
+
 // Derived completion: complete ÷ total, rounded. Never stored (CLAUDE.md → Traps);
 // null when the campaign has no deliverables yet, so the UI can say "—" rather
 // than a misleading 0%.

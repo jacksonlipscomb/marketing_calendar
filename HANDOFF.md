@@ -1,11 +1,13 @@
 # Handoff — Marketing Calendar (campaign/deliverable build)
 
-> **Current as of 2026-06-13.** The original events-based PoC was replaced by a
-> campaign/deliverable rewrite. Phases 1–3 are **live in production**; the
-> reminder path is **built but parked**; a high-priority backlog is queued but
-> **not built**. Read `CLAUDE.md`, `roadmap.md`, `structure.md`, and
-> `features.md` first — they are current and authoritative. This file orients
-> you and captures the operational/workflow knowledge those docs don't.
+> **Current as of 2026-06-14.** The original events-based PoC was replaced by a
+> campaign/deliverable rewrite. The foundation, core UI, and calendar bars are
+> **live in production**; the reminder path is **built but parked**; the first
+> high-priority backlog item (deliverable deep linking) is **built and in review
+> on its own branch** (this PR, not yet merged/deployed), the other two **not
+> built**. Read `CLAUDE.md`, `roadmap.md`, `structure.md`, and `features.md`
+> first — they are current and authoritative. This file orients you and captures
+> the operational/workflow knowledge those docs don't.
 
 ## 1. What this project is
 
@@ -44,11 +46,18 @@ route around it.
   and not deployed**; even if merged it stays dormant until a one-time setup runs.
 - Full spec, verification record, and the activation checklist: **`docs/archive/phase4-reminders.md`**.
 
-**Queued, NOT built (high-priority backlog, PR #14 — this branch):**
-- (1) deliverable deep linking + back affordance, (2) deliverable start+end dates
-  **replacing `due_date`** (becomes calendar spans/bars), (3) table/"exploded"
-  grid view. Build order 1 → 2 → 3. Full entries with codebase interactions:
-  `features.md` → High priority.
+**Built, in review — this PR (`feat-deliverable-deep-linking`, not yet merged/deployed):**
+- **Deliverable deep linking + back affordance** — a single-row `useDeliverable`
+  hook (parent campaign embedded) so the deliverable page loads standalone on a
+  cold deep link; the deliverable title in the breadcrumb; an explicit "← back to
+  campaign" link; a campaignId/deliverable mismatch (stale URL) → not-found in
+  both the page and the breadcrumb. Client-only — no schema/migration. *Decisions:*
+  the edit page doubles as the detail view (combined detail+edit, no separate
+  read-only route); mismatch shows not-found (no redirect).
+
+**Queued, NOT built (high-priority backlog — `features.md` → High priority):**
+- (1) deliverable start+end dates **replacing `due_date`** (becomes calendar
+  spans/bars), (2) table/"exploded" grid view. Build order 1 → 2.
 
 **Low priority / deferred:** campaign templates, the parked reminders, stretch UI
 (week view, text wrapping, drawer). See `features.md` → Low priority.
@@ -59,9 +68,11 @@ route around it.
   intentionally; **currently CONFLICTING** with `main` (its `features.md`/
   `structure.md` edits are superseded by the docs reorg). That's expected —
   leave it; when un-parking, rebase onto `main` and drop the stale doc edits.
-- **PR #14** — `docs-high-priority-backlog`: the backlog docs (and this HANDOFF
-  update). Docs-only.
-- Everything else is merged. `main` tip after the docs reorg is PR #13's merge.
+- **`feat-deliverable-deep-linking`** — this branch: high-priority item 1
+  (deliverable deep linking), cut fresh from `main`. PR pending; the owner opens
+  and merges it.
+- **PR #14** (`docs-high-priority-backlog`) is **merged** — `main` tip is its
+  merge commit (`7a439d5`). Everything else is merged too.
 
 ## 4. Data model & code map (detail in roadmap.md / structure.md)
 
@@ -159,9 +170,10 @@ route around it.
 
 ## 8. Likely next task
 
-The high-priority backlog (`features.md` → High priority), in order 1 → 2 → 3.
-Heads-up for item 2 (deliverable start/end replacing `due_date`): it carries a
-**destructive-ish migration** (drops `due_date`), reworks the calendar
+The high-priority backlog (`features.md` → High priority), in order 1 → 2 (the
+former item 1, deliverable deep linking, is built and in review).
+Heads-up for the next item — deliverable start/end replacing `due_date`: it carries
+a **destructive-ish migration** (drops `due_date`), reworks the calendar
 (deliverables become bars), and **breaks the parked `send-reminders` code + its
 `due_date` index** — so that PR needs the destructive-change callout, and
 un-parking reminders afterward means pointing the function at `start`/`end`. The

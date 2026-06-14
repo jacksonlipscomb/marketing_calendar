@@ -2,12 +2,32 @@ import { Fragment, type ReactNode } from "react"
 import { Link, useRouterState } from "@tanstack/react-router"
 
 import { useCampaign } from "@/lib/campaigns"
+import { useDeliverable } from "@/lib/deliverables"
 
 // Resolves a campaign id segment to its name (cached from the page's own
 // query in the normal case; a cheap one-row fetch on a cold deep link).
 function CampaignName({ id }: { id: string }) {
   const { data: campaign } = useCampaign(id)
   return <>{campaign?.name ?? "Campaign"}</>
+}
+
+// Resolves a deliverable id segment to its title — but only when it actually
+// belongs to the campaign in the URL. On a stale/wrong-campaign link this would
+// otherwise reveal the real title under the wrong campaign crumb, contradicting
+// the page's not-found guard. The neutral "Deliverable" label also covers the
+// loading/error window (data undefined), so no real title flashes.
+function DeliverableName({
+  deliverableId,
+  campaignId,
+}: {
+  deliverableId: string
+  campaignId: string
+}) {
+  const { data: deliverable } = useDeliverable(deliverableId)
+  if (!deliverable || deliverable.campaign_id !== campaignId) {
+    return <>Deliverable</>
+  }
+  return <>{deliverable.title}</>
 }
 
 // URL-derived breadcrumbs (page pattern): the trail is computed from the
@@ -62,7 +82,16 @@ export function Breadcrumbs() {
       crumbs.push(
         deliverableSegment === "new"
           ? { key: "d-new", node: "New deliverable", current: true }
-          : { key: "d-edit", node: "Edit deliverable", current: true },
+          : {
+              key: "d-edit",
+              node: (
+                <DeliverableName
+                  deliverableId={deliverableSegment}
+                  campaignId={campaignSegment}
+                />
+              ),
+              current: true,
+            },
       )
     }
   }
