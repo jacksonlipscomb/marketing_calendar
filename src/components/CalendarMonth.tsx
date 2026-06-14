@@ -132,6 +132,13 @@ export function CalendarMonth() {
     navigate({ to: "/campaigns/$campaignId", params: { campaignId } })
   }
 
+  function openDeliverable(campaignId: string, deliverableId: string) {
+    navigate({
+      to: "/campaigns/$campaignId/deliverables/$deliverableId",
+      params: { campaignId, deliverableId },
+    })
+  }
+
   return (
     <div className="grid gap-3">
       <div className="flex items-center justify-between">
@@ -212,11 +219,11 @@ export function CalendarMonth() {
                             key={d.id}
                             role="button"
                             tabIndex={0}
-                            onClick={() => openCampaign(d.campaign_id)}
+                            onClick={() => openDeliverable(d.campaign_id, d.id)}
                             onKeyDown={(e) => {
                               if (e.key === "Enter" || e.key === " ") {
                                 e.preventDefault() // Space must not scroll the page
-                                openCampaign(d.campaign_id)
+                                openDeliverable(d.campaign_id, d.id)
                               }
                             }}
                             className="group flex cursor-pointer items-start gap-1 rounded px-1.5 py-0.5 text-xs text-white"
@@ -235,6 +242,7 @@ export function CalendarMonth() {
                                 e.stopPropagation()
                                 openScheduleEmail({ id: d.id, title: d.title })
                               }}
+                              onKeyDown={(e) => e.stopPropagation()}
                               className="mt-0.5 ml-auto shrink-0 opacity-80 hover:opacity-100"
                             >
                               <Mail className="size-3" />

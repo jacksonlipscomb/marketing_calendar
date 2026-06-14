@@ -1,13 +1,15 @@
 # Handoff — Marketing Calendar (campaign/deliverable build)
 
 > **Current as of 2026-06-14.** The original events-based PoC was replaced by a
-> campaign/deliverable rewrite. The foundation, core UI, and calendar bars are
-> **live in production**; the reminder path is **built but parked**; the first
-> high-priority backlog item (deliverable deep linking) is **built and in review
-> on its own branch** (this PR, not yet merged/deployed), the other two **not
-> built**. Read `CLAUDE.md`, `roadmap.md`, `structure.md`, and `features.md`
-> first — they are current and authoritative. This file orients you and captures
-> the operational/workflow knowledge those docs don't.
+> campaign/deliverable rewrite. The foundation, core UI, calendar bars, and
+> deliverable deep linking are **live in production** (deep linking merged via PR
+> #15); the reminder path is **built but parked**; two small navigation
+> affordances (campaign back-to-list link + calendar deliverables opening the
+> deliverable view) are **built and in review on a branch** (not yet
+> merged/deployed); two high-priority backlog items remain **not built**. Read
+> `CLAUDE.md`, `roadmap.md`, `structure.md`, and `features.md` first — they are
+> current and authoritative. This file orients you and captures the
+> operational/workflow knowledge those docs don't.
 
 ## 1. What this project is
 
@@ -39,6 +41,10 @@ route around it.
   (never stored); calendar; deep-linkable routes with URL breadcrumbs.
 - **Calendar bars** — campaigns render as lane-stacked bars on the month grid,
   deliverables listed below; category filter hides both.
+- **Deliverable deep linking** (PR #15) — the deliverable page loads standalone on
+  a cold deep link (single-row `useDeliverable` hook, parent campaign embedded);
+  title in the breadcrumb; explicit "← back to campaign" link; a campaignId/
+  deliverable mismatch → not-found in both page and breadcrumb.
 
 **Built but PARKED — not in production (`send-reminders`, PR #11 open):**
 - The scheduled reminder edge function is written, locally verified, review-
@@ -46,14 +52,14 @@ route around it.
   and not deployed**; even if merged it stays dormant until a one-time setup runs.
 - Full spec, verification record, and the activation checklist: **`docs/archive/phase4-reminders.md`**.
 
-**Built, in review — this PR (`feat-deliverable-deep-linking`, not yet merged/deployed):**
-- **Deliverable deep linking + back affordance** — a single-row `useDeliverable`
-  hook (parent campaign embedded) so the deliverable page loads standalone on a
-  cold deep link; the deliverable title in the breadcrumb; an explicit "← back to
-  campaign" link; a campaignId/deliverable mismatch (stale URL) → not-found in
-  both the page and the breadcrumb. Client-only — no schema/migration. *Decisions:*
-  the edit page doubles as the detail view (combined detail+edit, no separate
-  read-only route); mismatch shows not-found (no redirect).
+**Built, in review — this PR (`feat-campaign-back-calendar-deliverable-link`, not yet merged/deployed):**
+- **Campaign back-to-list link** — the campaign detail page now has an explicit
+  "← Back to campaigns" link (mirrors the deliverable page's back link).
+- **Calendar deliverable deep-link** — clicking a deliverable chip on the calendar
+  now opens the deliverable view (`/campaigns/:id/deliverables/:id`) instead of the
+  campaign page; campaign **bars** still open the campaign. Also fixed a latent
+  keyboard bug (Enter/Space on the chip's Mail button no longer also navigates).
+  Client-only — no schema/migration. Runtime-verified locally (6/6 Playwright).
 
 **Queued, NOT built (high-priority backlog — `features.md` → High priority):**
 - (1) deliverable start+end dates **replacing `due_date`** (becomes calendar
@@ -68,9 +74,11 @@ route around it.
   intentionally; **currently CONFLICTING** with `main` (its `features.md`/
   `structure.md` edits are superseded by the docs reorg). That's expected —
   leave it; when un-parking, rebase onto `main` and drop the stale doc edits.
-- **`feat-deliverable-deep-linking`** — this branch: high-priority item 1
-  (deliverable deep linking), cut fresh from `main`. PR pending; the owner opens
-  and merges it.
+- **PR #15** (`feat-deliverable-deep-linking`) — deliverable deep linking — is
+  **merged** (`main` tip `c481748`); branch deleted.
+- **`feat-campaign-back-calendar-deliverable-link`** — this branch: campaign
+  back-to-list link + calendar deliverable deep-link, cut fresh from `main`. PR
+  pending; the owner opens and merges it.
 - **PR #14** (`docs-high-priority-backlog`) is **merged** — `main` tip is its
   merge commit (`7a439d5`). Everything else is merged too.
 
