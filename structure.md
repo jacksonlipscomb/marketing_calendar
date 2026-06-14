@@ -11,7 +11,9 @@ marketing-calendar/
   src/
     components/
       CalendarMonth.tsx        # month view: campaign bars (lane-stacked per week row) +
-                               #   deliverables by due date below them, same-date wrapping
+                               #   deliverables by due date below them, same-date wrapping;
+                               #   bars open the campaign, deliverable chips deep-link to the
+                               #   deliverable view
       CampaignForm.tsx         # shared create/edit campaign form (page pattern)
       DeliverableForm.tsx      # shared create/edit deliverable form (page pattern)
       OwnersInput.tsx          # tag-style input for owners text[] (never comma-joined)

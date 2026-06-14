@@ -73,21 +73,29 @@ export function CampaignDetailPage() {
 
   return (
     <div className="grid gap-6">
-      <div className="grid gap-1">
-        <div className="flex items-center gap-2">
-          <span
-            className="size-2.5 shrink-0 rounded-full"
-            style={{ backgroundColor: `var(--cat-${campaign.category})` }}
-            title={campaign.category}
-          />
-          <h2 className="text-xl font-semibold">{campaign.name}</h2>
-          <Badge variant="secondary" className="capitalize">
-            {campaign.status.replace("_", " ")}
-          </Badge>
+      <div className="grid gap-3">
+        <Link
+          to="/campaigns"
+          className="text-muted-foreground w-fit text-sm hover:underline"
+        >
+          ← Back to campaigns
+        </Link>
+        <div className="grid gap-1">
+          <div className="flex items-center gap-2">
+            <span
+              className="size-2.5 shrink-0 rounded-full"
+              style={{ backgroundColor: `var(--cat-${campaign.category})` }}
+              title={campaign.category}
+            />
+            <h2 className="text-xl font-semibold">{campaign.name}</h2>
+            <Badge variant="secondary" className="capitalize">
+              {campaign.status.replace("_", " ")}
+            </Badge>
+          </div>
+          <p className="text-muted-foreground text-sm">
+            Completion: {percent === null ? "— (no deliverables yet)" : `${percent}%`}
+          </p>
         </div>
-        <p className="text-muted-foreground text-sm">
-          Completion: {percent === null ? "— (no deliverables yet)" : `${percent}%`}
-        </p>
       </div>
 
       <section className="grid gap-3">
