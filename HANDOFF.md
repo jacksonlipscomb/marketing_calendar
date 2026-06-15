@@ -1,15 +1,16 @@
 # Handoff — Marketing Calendar (campaign/deliverable build)
 
 > **Current as of 2026-06-14.** The original events-based PoC was replaced by a
-> campaign/deliverable rewrite. **Everything built so far is live in production:**
-> foundation, core UI, calendar bars, deliverable deep linking (PR #15), and the
-> campaign back-to-list link + calendar-deliverable deep-link (PR #16). CI/Deploy
-> actions were bumped off the deprecated Node-20 runtime to Node 24 (PR #17). The
-> reminder path is **built but parked**; two high-priority backlog items remain
-> **not built**; nothing is mid-review right now. Read `CLAUDE.md`, `roadmap.md`,
-> `structure.md`, and `features.md` first — they are current and authoritative.
-> This file orients you and captures the operational/workflow knowledge those docs
-> don't.
+> campaign/deliverable rewrite. **All high-priority features are shipped and live
+> in production:** foundation, core UI, calendar bars, deliverable deep linking
+> (PR #15), navigation affordances (PR #16), deliverable start/end spans (PR #19),
+> and the table/exploded view (PR #20). CI/Deploy actions were bumped to Node 24
+> (PR #17) and the deploy was hardened against a flaky Supabase-CLI lookup (PR #21).
+> **The high-priority tier is empty and nothing is mid-review.** The reminder path
+> is **built but parked**; everything else outstanding is Low-priority. Read
+> `CLAUDE.md`, `roadmap.md`, `structure.md`, and `features.md` first — they are
+> current and authoritative. This file orients you and captures the
+> operational/workflow knowledge those docs don't.
 
 ## 1. What this project is
 
@@ -55,6 +56,11 @@ route around it.
   `end_date`) + cross-table guards (deliverable-bounds trigger, campaign-shrink
   guard trigger, atomic `update_campaign_clamp` RPC) + the date-shrink cascade UX.
   Un-parking `send-reminders` later means re-pointing its selection at `end_date`.
+- **Table / "exploded" view** (PR #20) — a top-level `/table` page: one flat grid,
+  one row per deliverable with the parent campaign denormalized onto the row; every
+  column sortable (keyboard-operable); chip filters (category, campaign + deliverable
+  status) + global name/owner search; CSV export of the current filtered/sorted view.
+  Built on **TanStack Table** (`@tanstack/react-table`); client-only, no migration.
 
 **Built but PARKED — not in production (`send-reminders`, PR #11 open):**
 - The scheduled reminder edge function is written, locally verified, review-
@@ -62,18 +68,12 @@ route around it.
   and not deployed**; even if merged it stays dormant until a one-time setup runs.
 - Full spec, verification record, and the activation checklist: **`docs/archive/phase4-reminders.md`**.
 
-**Built, in review (not yet merged — `features.md` → Built, in review):**
-- **Table / "exploded" view** — branch `feat-table-view`. A new top-level `/table`
-  page: one flat grid, one row per deliverable with the parent campaign denormalized
-  onto the row; every column sortable; chip filters (category, campaign status,
-  deliverable status) + global name/owner search; CSV export of the current
-  filtered/sorted view. Built on **TanStack Table** (new `@tanstack/react-table`
-  dep); client-only, **no migration.** Static checks green; runtime-verified
-  locally (Playwright); **not yet deployed.**
+**Built, in review (not yet merged):**
+- **None right now** — nothing is awaiting merge.
 
 **Queued, NOT built (high-priority backlog):**
-- **None — the high-priority tier is empty.** Every queued breadth feature has
-  shipped (PRs #15/#16/#19) or is in review (table view). Next pickups come from
+- **None — all high-priority features are shipped and live** (PRs #15/#16/#19/#20).
+  The tier is empty and nothing is in review. Next pickups come from
   `features.md` → Low priority (campaign-view category filter, single-day
   deliverable option, templates, parked reminders, stretch UI) or owner reprioritization.
 
@@ -88,10 +88,12 @@ filter). See `features.md` → Low priority.
   intentionally; **currently CONFLICTING** with `main` (its `features.md` /
   `structure.md` edits are superseded by later docs). That's expected — leave it;
   when un-parking, rebase onto `main` and drop the stale doc edits.
-- **Everything else is merged.** Recent: PR #14 (backlog docs), #15 (deliverable
-  deep linking), #16 (campaign back link + calendar deliverable deep-link), #17 (CI
-  Node-24 action bumps + one low-pri backlog item). `main` tip is `787d85d` (the #17
-  merge); merged head branches are auto-deleted.
+- **Everything else is merged.** Recent: #15 (deliverable deep linking), #16
+  (campaign back link + calendar deliverable deep-link), #17 (CI Node-24 bumps),
+  #18 (handoff docs), #19 (deliverable start/end spans + migration `0005`), #20
+  (table/exploded view), #21 (deploy hardening — pinned Supabase CLI + frontend
+  gated on the DB job). `main` tip is `6374545` (the #21 merge); merged head
+  branches are auto-deleted.
 
 ## 4. Data model & code map (detail in roadmap.md / structure.md)
 
@@ -160,11 +162,16 @@ filter). See `features.md` → Low priority.
   `node_modules`). Seed throwaway rows with fixed UUIDs, assert, then **clean up**:
   delete the rows, remove the temp script + `.env.local`, and `npx supabase stop`.
   Recent templates: the PR #15 deep-link pass (8/8 checks) and PR #16 nav pass (6/6).
-- **Deploy (`.github/workflows/deploy.yml`, on push to `main`):** `supabase db
-  push` (applies migrations — **destructive ones included**), deploy
-  `schedule-email`, build + deploy frontend to Cloudflare Pages. The
-  `send-reminders` deploy step exists only in PR #11. **CI + Deploy actions run on
-  Node 24** (PR #17: checkout→v6, setup-node→v6, supabase/setup-cli→v2,
+- **Deploy (`.github/workflows/deploy.yml`, on push to `main`):** two jobs —
+  `deploy-supabase` (`supabase db push` — applies migrations, **destructive ones
+  included** — then deploy `schedule-email`) and `deploy-frontend` (build + deploy
+  to Cloudflare Pages). The `send-reminders` deploy step exists only in PR #11.
+  **PR #21 hardened this:** `supabase/setup-cli` is pinned to `version: 2.105.0`
+  (was `latest`, which resolved the newest release over the network and 504'd once
+  — "Failed to resolve latest Supabase CLI release: Gateway Time-out"), and
+  `deploy-frontend` now `needs: deploy-supabase` so the frontend can't ship against
+  an un-migrated schema if the DB job fails. **CI + Deploy actions run on Node 24**
+  (PR #17: checkout→v6, setup-node→v6, supabase/setup-cli→v2,
   cloudflare/wrangler-action→v4; the build steps' `node-version: 20` is separate and
   unchanged). To inspect a run's warning annotations:
   `gh api repos/jacksonlipscomb/marketing_calendar/check-runs/<job_id>/annotations`.
@@ -199,10 +206,10 @@ filter). See `features.md` → Low priority.
 
 ## 8. Likely next task
 
-**The high-priority tier is empty** — the table/"exploded" view (the last queued
-item) is built and in review on branch `feat-table-view`; once its PR merges,
-every queued breadth feature is done. So the next task is **owner's pick from the
-Low-priority tier** (`features.md` → Low priority), most of which are quick wins:
+**All high-priority features are shipped and live** (the table/"exploded" view, the
+last queued item, merged as PR #20). The high-priority tier is empty and nothing is
+in review. So the next task is **owner's pick from the Low-priority tier**
+(`features.md` → Low priority), most of which are quick wins:
 - "Filter campaigns by category on the Campaigns tab" — cheapest; mirror the
   calendar's category filter on the campaigns list (the table page's page-local
   chip-filter pattern is a ready template).
