@@ -10,32 +10,32 @@ Ship **50–80% of the features well enough to tell 100% of the story**. The sto
 
 Three tiers — **Implemented** (live in production), **High priority** (queued to build next), **Low priority** (deferred / parked / stretch) — plus a transient **Built, in review** holding area for code-complete work awaiting merge (it moves up to Implemented on deploy). Items carry their build state. Earlier this file tracked a numbered phase sequence; that history lives in git and the merged PRs.
 
-**Current state (2026-06-14):** **all high-priority work is done and live.** The foundation, core UI, calendar bars, deliverable deep linking (PR #15), navigation affordances (PR #16), deliverable start/end dates (PR #19 — calendar spans + cross-table integrity), and the **table/exploded view** (PR #20) are all in production. **The High-priority tier is empty and nothing is in review.** What remains is the Low-priority tier (campaign-view category filter, single-day deliverable option, templates, parked reminders, stretch UI) — none of it blocks the demo. The product tells the full story today.
+**Current state (2026-06-15):** all high-priority work **and** the first two low-priority wins are **live in production** — nothing is in review. The product tells the full story today. What's left is the rest of the Low-priority tier (templates, parked reminders, stretch UI), none of which blocks the demo.
 
 ## Implemented (live in production)
 
-Shipped and deployed via merge to `main`. Verification records, acceptance criteria, and cut lines are preserved in git history and the merged PRs (#7, #8, #10).
+Shipped via merge to `main` — one line each; full detail, verification, and decisions live in git history and each PR.
 
-- **Foundation** — the destructive reset migration (`0004_reset_campaigns.sql`), campaign/deliverable schema with multi-owner `text[]`, `schedule-email` re-pointed to `deliverable_id`, and minimal campaign/deliverable CRUD.
-- **Core UI** — campaign list with range filter (inclusive overlap semantics) + status filter; campaign detail with a deliverable status filter and derived completion % (never stored); calendar of deliverables; deep-linkable page routes with URL-derived breadcrumbs.
-- **Calendar bars** — campaigns render as lane-stacked horizontal bars on the month grid; bars colored by category, click/keyboard-navigable; the category filter hides bars and deliverables together.
-- **Deliverable deep linking** (PR #15) — the deliverable route loads standalone on a cold deep link via a single-row `useDeliverable` hook (parent campaign embedded), shows the deliverable's **title** in the breadcrumb, and carries an explicit "← back to campaign" link; a `campaignId`/deliverable mismatch shows not-found in both the page and the breadcrumb (the real title is never surfaced under the wrong campaign). *Decisions:* the edit page doubles as the detail view (no separate read-only route); a campaign mismatch shows not-found rather than redirecting.
-- **Navigation affordances** (PR #16) — campaign detail gained a "← Back to campaigns" link; clicking a deliverable on the calendar opens the deliverable view (campaign bars still open the campaign); a keyboard guard stops the Mail button from also navigating.
-- **Deliverable start + end dates** (PR #19) — deliverables are dated **spans** bounded by their campaign window, rendering as bars in a band below the campaign bars. Migration `0005` (added `start_date`/`end_date`, dropped `due_date`, rebuilt the reminder index on `end_date`) plus the cross-table guards: a deliverable-bounds trigger, a campaign-shrink guard trigger, and the atomic `update_campaign_clamp` RPC. UI: span inputs with campaign bounds, overlap range query, and a campaign date-shrink cascade (partial overflow → atomic clamp confirm; un-clampable → blocked, offenders named).
-- **Table / "exploded" view** (PR #20) — a top-level `/table` page: one flat grid, **one row per deliverable** with the parent campaign's columns denormalized onto the row; every column sortable (keyboard-operable headers); filterable; CSV-exportable. Built on **TanStack Table**. Filters: a global text search over names/owners + page-local chip filters for category, campaign status, and deliverable status (they don't touch the calendar's filter). The deliverable-title cell deep-links into the deliverable view; CSV exports the current filtered/sorted view (11 visible columns) via a dependency-free `src/lib/csv.ts`. A `useUpdateCampaign` cache fix keeps the denormalized rows fresh after a campaign edit. *Decisions:* TanStack Table over hand-built; enum chips + global search over per-column inputs. *Known limitation:* grain is per-deliverable, so a campaign with no deliverables produces no rows.
-- **Single day option for deliverables** (PR #23) — a "Single day" checkbox above the deliverable date inputs collapses the Start/End pair into one "Date" box (writing the same value to both `start_date`/`end_date`); unchecking restores the range inputs. Initializes checked when `start == end`. UI-only in `DeliverableForm.tsx`.
+- **Foundation & core UI** — reset migration `0004` (campaign/deliverable schema, multi-owner `text[]`), `schedule-email` on `deliverable_id`, campaign/deliverable CRUD; campaign list with range (inclusive overlap) + status filters and derived completion % (never stored); deep-linkable routes with URL breadcrumbs.
+- **Calendar** — campaigns as lane-stacked, category-colored bars on the month grid; deliverables as span bars in a band below; category filter hides both.
+- **Deliverable deep linking** (#15) — standalone load on a cold deep link (single-row `useDeliverable`), title in the breadcrumb, back-to-campaign link, campaign mismatch → not-found.
+- **Navigation affordances** (#16) — campaign "← Back to campaigns" link; a calendar deliverable opens the deliverable view (bars still open the campaign).
+- **Deliverable start/end spans** (#19) — deliverables are dated spans bounded by their campaign window; migration `0005` (adds start/end, drops `due_date`, reminder index on `end_date`) + cross-table guards (deliverable-bounds trigger, campaign-shrink guard, atomic `update_campaign_clamp` RPC) + the date-shrink cascade UX.
+- **Table / "exploded" view** (#20) — `/table`: one flat row per deliverable (parent campaign columns denormalized), every column sortable, chip + text filters, CSV export. Built on TanStack Table.
+- **Single-day deliverable option** (#23) — a "Single day" checkbox collapses the Start/End inputs into one Date box (`start == end`).
+- **Campaigns-tab category filter** (#24) — the calendar's category chips on the campaigns list, with state independent of the calendar's; filters the query server-side.
 
 ## Built, in review (not yet merged)
 
-- **Category filter on the Campaigns tab** — branch `feat-campaign-category-filter`. Adds the calendar's category chip filter to the campaigns list (multi-select toggles, all-on by default), filtering the `useCampaigns` query server-side via `.in("category", …)`. Its state (`campaignCategories`) is **independent** of the calendar's (`activeCategories`). `CategoryFilter` was made presentational (props) so both tabs reuse it. Client-only — no schema. *Verification:* static green; runtime-verified locally (Playwright). **Not yet deployed.**
+_None right now._
 
 ## High priority
 
-**Empty — all high-priority features are shipped and live** (deep linking #15, navigation #16, start/end dates #19, table view #20). Nothing is queued or in review. Next work comes from the Low-priority tier below, or whatever the owner reprioritizes for the demo.
+**Empty — all high-priority features are shipped and live.** Next work comes from the Low-priority tier below, or whatever the owner reprioritizes for the demo.
 
 ## Low priority
 
-Deferred, parked, or stretch — none blocks the demo story. (The campaign-tab category filter and the single-day deliverable option have shipped / are in review — see the sections above.)
+Deferred, parked, or stretch — none blocks the demo story. (The campaign-tab category filter and the single-day deliverable option have shipped — see Implemented above.)
 
 ### Campaign templates — *not built*
 
