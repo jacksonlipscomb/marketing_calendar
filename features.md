@@ -40,9 +40,9 @@ Deferred, parked, or stretch — none blocks the demo story.
 
 Cheap and easy to build. Add another filter on the campaigns tab that does the same thing as the filter on the Calendar tab: filters campaigns by Recruiting, Retention, Regatta, and Fundraising. This should be an easy implementation.
 
-### Single day option for deliverables - *not built*
+### Single day option for deliverables - *built, in review*
 
-The option to click a check box that says "single day" right above the start and end date that transforms those two boxes into one single "date" box. 
+A "Single day" checkbox above the deliverable date inputs collapses the Start/End pair into one "Date" box (writing the same value to both `start_date` and `end_date`); unchecking restores the range inputs. The checkbox initializes from the data — checked when `start == end`. UI-only, in `DeliverableForm.tsx` (no schema/payload change). Branch `feat-single-day-deliverable`.
 
 ### Campaign templates — *not built*
 
