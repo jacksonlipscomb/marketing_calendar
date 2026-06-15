@@ -13,7 +13,9 @@ import {
   startOfYear,
 } from "date-fns"
 import { supabase } from "./supabase"
+import { CAMPAIGN_CATEGORIES } from "./database.types"
 import type {
+  CampaignCategory,
   CampaignInsert,
   CampaignRow,
   CampaignStatus,
@@ -67,14 +69,23 @@ export function rangeBounds(
 export function useCampaigns(
   range: RangeKey = "all",
   status: CampaignStatusFilter = "all",
+  categories: CampaignCategory[] = [...CAMPAIGN_CATEGORIES],
 ) {
   const bounds = rangeBounds(range)
+  // All categories selected = no category constraint; otherwise filter to the
+  // chosen set (empty = none selected = no rows, matching the calendar). The key
+  // segment is stable/order-independent so toggling refetches correctly.
+  const allCategories = categories.length === CAMPAIGN_CATEGORIES.length
+  const categoryKey = allCategories
+    ? "all"
+    : [...categories].sort().join("|") || "none"
   return useQuery({
     queryKey: [
       "campaigns",
       "list",
       bounds ? `${fmt(bounds.start)}..${fmt(bounds.end)}` : "all",
       status,
+      categoryKey,
     ],
     queryFn: async (): Promise<CampaignRow[]> => {
       let query = supabase.from("campaigns").select("*")
@@ -85,6 +96,9 @@ export function useCampaigns(
       }
       if (status !== "all") {
         query = query.eq("status", status)
+      }
+      if (!allCategories) {
+        query = query.in("category", categories)
       }
       const { data, error } = await query.order("start_date", {
         ascending: true,

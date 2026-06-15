@@ -17,16 +17,19 @@ type UiState = {
   prevMonth: () => void
   goToday: () => void
 
-  // Category filter — which campaign categories are currently shown.
+  // Calendar category filter — which campaign categories the calendar shows.
   activeCategories: CampaignCategory[]
   toggleCategory: (category: CampaignCategory) => void
 
   // Campaign list filters (kept here rather than page-local so the selection
-  // survives navigating away and back within a session).
+  // survives navigating away and back within a session). The campaign-list
+  // category filter is independent of the calendar's `activeCategories` above.
   campaignRange: RangeKey
   setCampaignRange: (range: RangeKey) => void
   campaignStatus: CampaignStatusFilter
   setCampaignStatus: (status: CampaignStatusFilter) => void
+  campaignCategories: CampaignCategory[]
+  toggleCampaignCategory: (category: CampaignCategory) => void
 
   // Schedule-email dialog for a given deliverable. Campaign/deliverable
   // create+edit are pages (page pattern), not dialogs, so no form state here.
@@ -53,6 +56,13 @@ export const useUiStore = create<UiState>((set) => ({
   setCampaignRange: (range) => set({ campaignRange: range }),
   campaignStatus: "all",
   setCampaignStatus: (status) => set({ campaignStatus: status }),
+  campaignCategories: [...CAMPAIGN_CATEGORIES],
+  toggleCampaignCategory: (category) =>
+    set((s) => ({
+      campaignCategories: s.campaignCategories.includes(category)
+        ? s.campaignCategories.filter((c) => c !== category)
+        : [...s.campaignCategories, category],
+    })),
 
   scheduleDialog: { open: false, deliverable: null },
   openScheduleEmail: (deliverable) =>

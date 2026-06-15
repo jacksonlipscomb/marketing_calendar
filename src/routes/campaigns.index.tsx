@@ -5,23 +5,33 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { RangeFilter } from "@/components/RangeFilter"
 import { StatusFilter } from "@/components/StatusFilter"
+import { CategoryFilter } from "@/components/CategoryFilter"
 import { useCampaigns } from "@/lib/campaigns"
 import { useUiStore } from "@/lib/uiStore"
-import { CAMPAIGN_STATUSES } from "@/lib/database.types"
+import { CAMPAIGN_CATEGORIES, CAMPAIGN_STATUSES } from "@/lib/database.types"
 
 // /campaigns — the campaign list, filtered by time range (overlap semantics)
 // and status, combined server-side. List only — the timeline lives on the
 // calendar page as campaign bars (owner re-spec, 2026-06-11).
 export function CampaignsPage() {
-  const { campaignRange, setCampaignRange, campaignStatus, setCampaignStatus } =
-    useUiStore()
+  const {
+    campaignRange,
+    setCampaignRange,
+    campaignStatus,
+    setCampaignStatus,
+    campaignCategories,
+    toggleCampaignCategory,
+  } = useUiStore()
   const {
     data: campaigns = [],
     isLoading,
     error,
-  } = useCampaigns(campaignRange, campaignStatus)
+  } = useCampaigns(campaignRange, campaignStatus, campaignCategories)
 
-  const filtered = campaignRange !== "all" || campaignStatus !== "all"
+  const filtered =
+    campaignRange !== "all" ||
+    campaignStatus !== "all" ||
+    campaignCategories.length < CAMPAIGN_CATEGORIES.length
 
   return (
     <div className="grid gap-4">
@@ -37,6 +47,10 @@ export function CampaignsPage() {
         options={CAMPAIGN_STATUSES}
         value={campaignStatus}
         onChange={setCampaignStatus}
+      />
+      <CategoryFilter
+        value={campaignCategories}
+        onToggle={toggleCampaignCategory}
       />
 
       {error && (
