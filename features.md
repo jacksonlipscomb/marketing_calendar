@@ -10,7 +10,7 @@ Ship **50–80% of the features well enough to tell 100% of the story**. The sto
 
 Three tiers — **Implemented** (live in production), **High priority** (queued to build next), **Low priority** (deferred / parked / stretch) — plus a transient **Built, in review** holding area for code-complete work awaiting merge (it moves up to Implemented on deploy). Items carry their build state. Earlier this file tracked a numbered phase sequence; that history lives in git and the merged PRs.
 
-**Current state (2026-06-14):** the foundation, core UI, calendar bars, deliverable deep linking (PR #15), and the navigation affordances (PR #16) are live. **Deliverable start/end dates** (the calendar/integrity rework) are **built and in review** — code-complete on a branch with a destructive-ish migration, static checks green (see below). That leaves **one** high-priority item queued: the table/exploded view. Everything else — including the built-but-parked reminder emails — is low priority.
+**Current state (2026-06-14):** the foundation, core UI, calendar bars, deliverable deep linking (PR #15), navigation affordances (PR #16), and **deliverable start/end dates** (PR #19 — calendar spans + cross-table integrity) are all live. The **table/exploded view** is **built and in review** (see below). **High priority is now empty** — every queued breadth feature has shipped or is in review; what remains is the Low-priority tier (campaign-view category filter, single-day deliverable option, templates, parked reminders, stretch UI).
 
 ## Implemented (live in production)
 
@@ -21,26 +21,17 @@ Shipped and deployed via merge to `main`. Verification records, acceptance crite
 - **Calendar bars** — campaigns render as lane-stacked horizontal bars on the month grid; bars colored by category, click/keyboard-navigable; the category filter hides bars and deliverables together.
 - **Deliverable deep linking** (PR #15) — the deliverable route loads standalone on a cold deep link via a single-row `useDeliverable` hook (parent campaign embedded), shows the deliverable's **title** in the breadcrumb, and carries an explicit "← back to campaign" link; a `campaignId`/deliverable mismatch shows not-found in both the page and the breadcrumb (the real title is never surfaced under the wrong campaign). *Decisions:* the edit page doubles as the detail view (no separate read-only route); a campaign mismatch shows not-found rather than redirecting.
 - **Navigation affordances** (PR #16) — campaign detail gained a "← Back to campaigns" link; clicking a deliverable on the calendar opens the deliverable view (campaign bars still open the campaign); a keyboard guard stops the Mail button from also navigating.
+- **Deliverable start + end dates** (PR #19) — deliverables are dated **spans** bounded by their campaign window, rendering as bars in a band below the campaign bars. Migration `0005` (added `start_date`/`end_date`, dropped `due_date`, rebuilt the reminder index on `end_date`) plus the cross-table guards: a deliverable-bounds trigger, a campaign-shrink guard trigger, and the atomic `update_campaign_clamp` RPC. UI: span inputs with campaign bounds, overlap range query, and a campaign date-shrink cascade (partial overflow → atomic clamp confirm; un-clampable → blocked, offenders named).
 
 ## Built, in review (not yet merged)
 
 Code-complete on a branch, static checks green and runtime-verified locally, awaiting merge + deploy — **not yet live in production.** Each entry moves up to Implemented on deploy.
 
-- **Deliverable start + end dates (replaces `due_date`)** — branch `feat-deliverable-start-end-dates` (2026-06-14). Deliverables become dated **spans** bounded by their campaign window. Carries a **destructive-ish migration** `0005_deliverable_dates.sql` (adds `start_date`/`end_date`, backfills from `due_date`, **drops `due_date`**, `deliverables_dates_check`, rebuilt reminder index on `end_date`, a deliverable-bounds trigger and a campaign-shrink guard trigger, plus the atomic `update_campaign_clamp` RPC). Client: span inputs + bounds, overlap range query, calendar reworked so deliverables render as bars in a band **below** the campaign bars (deep-link + inline schedule-email preserved), and a campaign date-shrink cascade (partial overflow → atomic clamp confirm; fully-outside → blocked). *Decisions (owner-approved):* deliverable bars in a separate band below; an un-clampable deliverable blocks the campaign save (names the offenders) rather than snapping. *Verification:* `typecheck`/`lint`/`build` green; **runtime-verified locally** (2026-06-14, local Supabase stack): DB guards via psql (out-of-bounds deliverable rejected, plain campaign-shrink orphan rejected, non-date edit allowed, clamp RPC atomic, un-clampable raises + rolls back) and 8/8 Playwright checks (bars below campaigns, deep-link + start–end header, bounded start/end inputs, trigger rejection in-form, shrink→clamp dialog, un-clampable blocked, Mail no-navigation, campaign-bar regression). The prod `due_date→start/end` backfill is verified by SQL inspection only (the local chain starts post-`0005`). **Not yet deployed.**
+- **Table / "exploded" view** — branch `feat-table-view` (2026-06-14). A new top-level `/table` page: one flat grid, **one row per deliverable** with the parent campaign's columns denormalized onto the row; every column sortable; filterable; CSV-exportable. Built on **TanStack Table** (new `@tanstack/react-table` dep). Filters: a global text search over names/owners + chip filters for category, campaign status, and deliverable status (page-local — they don't touch the calendar's filter). The deliverable-title cell deep-links into the deliverable view; CSV exports the **current filtered/sorted** view (the 11 visible columns, no internal ids) via a dependency-free `src/lib/csv.ts`. Route wired in `router.tsx`, nav link in `__root.tsx`, a `Calendar › Table` breadcrumb case; `StatusFilter` gained an optional `label` prop. Client-only — **no migration.** *Decisions (owner-approved):* TanStack Table over hand-built; enum chips + global search over per-column filter inputs. *Known limitation:* the grain is per-deliverable, so a campaign with no deliverables produces no rows. *Verification:* `typecheck`/`lint`/`build` green; runtime-verified locally (Playwright). **Not yet deployed.**
 
 ## High priority
 
-One item queued to build next: the table/exploded view. (Deliverable start/end dates moved to *Built, in review*; deliverable deep linking shipped in PR #15.) It notes what it touches in the codebase.
-
-### Table / spreadsheet "exploded" view — *a feature, the largest item*
-
-One flat, sortable, filterable, exportable grid of everything.
-
-- **Grain**: one row = one deliverable, with parent campaign columns denormalized onto the row (grouped/nested rows break column sort). Columns: campaign name/start/end/category/status/owners; deliverable name/start/end/status/owners.
-- **Depends on** the deliverable deep link (live, PR #15 — rows link into it) and deliverable start/end (built, in review — supplies the start/end columns) — which is why it's last.
-- **The work**: a new route (e.g. `/table`) + nav link in [__root.tsx](src/routes/__root.tsx) + a Breadcrumbs case + registration in [router.tsx](src/router.tsx); a denormalized query (all deliverables joined with campaign columns, flattened); per-column sort + filter; CSV export of the **current filtered/sorted view** (default), client-side, no dependency (xlsx only if formatting/multi-sheet is ever needed).
-- **Build decision** (flag): hand-built vs. **TanStack Table** (headless; fits the existing TanStack Router/Query stack) — recommend TanStack Table for the sort/filter plumbing at this scope.
-- **Touches**: a new route file, router.tsx, __root.tsx, Breadcrumbs.tsx, a new query hook (deliverables.ts or a new `lib/table.ts`), a small CSV helper.
+**Empty** — every queued breadth feature has shipped (PRs #15, #16, #19) or is in review (the table view above). Pick the next focus from the Low-priority tier below, or reprioritize as the demo needs.
 
 ## Low priority
 
@@ -49,6 +40,10 @@ Deferred, parked, or stretch — none blocks the demo story.
 ### Filter by category on Campaign View - *not built*
 
 Cheap and easy to build. Add another filter on the campaigns tab that does the same thing as the filter on the Calendar tab: filters campaigns by Recruiting, Retention, Regatta, and Fundraising. This should be an easy implementation.
+
+### Single day option for deliverables - *not built*
+
+The option to click a check box that says "single day" right above the start and end date that transforms those two boxes into one single "date" box. 
 
 ### Campaign templates — *not built*
 

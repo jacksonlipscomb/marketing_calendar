@@ -162,7 +162,13 @@ export function useUpdateCampaign() {
       if (error) throw new Error(error.message)
       return data
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["campaigns"] }),
+    // Also invalidate deliverables: the /table view denormalizes campaign columns
+    // (name/dates/category/status/owners) onto each deliverable row, so a campaign
+    // edit must refresh that query too or the table shows stale campaign values.
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["campaigns"] })
+      qc.invalidateQueries({ queryKey: ["deliverables"] })
+    },
   })
 }
 

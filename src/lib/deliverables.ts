@@ -8,8 +8,11 @@ import {
 } from "date-fns"
 import { supabase } from "./supabase"
 import type {
+  CampaignCategory,
+  CampaignStatus,
   DeliverableInsert,
   DeliverableRow,
+  DeliverableStatus,
   DeliverableUpdate,
 } from "./database.types"
 
@@ -58,6 +61,76 @@ export function useDeliverablesInRange(start: Date, end: Date) {
 export function useMonthDeliverables(month: Date) {
   const { start, end } = monthGridRange(month)
   return useDeliverablesInRange(start, end)
+}
+
+// One flat row per deliverable for the table/exploded view, with the parent
+// campaign's columns denormalized onto the row. `campaign_id`/`deliverable_id` are
+// internal — they drive the row key and the title deep link, and are NOT shown as
+// columns or exported. The other 11 fields are the visible/exported columns.
+export type DeliverableTableRow = {
+  campaign_id: string
+  deliverable_id: string
+  campaign_name: string
+  campaign_start: string
+  campaign_end: string
+  category: CampaignCategory
+  campaign_status: CampaignStatus
+  campaign_owners: string[]
+  deliverable_title: string
+  deliverable_start: string
+  deliverable_end: string
+  deliverable_status: DeliverableStatus
+  deliverable_owners: string[]
+}
+
+// Shape of the embedded campaign on the raw query (mirrors the CalendarDeliverable
+// embed pattern, widened to the columns the table denormalizes).
+type TableEmbed = DeliverableRow & {
+  campaigns: {
+    name: string
+    start_date: string
+    end_date: string
+    category: CampaignCategory
+    status: CampaignStatus
+    owners: string[]
+  } | null
+}
+
+// All deliverables joined with their campaign, flattened. The table sorts/filters
+// client-side, so order here is just a sensible default (campaign then start).
+// Key is a sub-key of ["deliverables"], so the existing deliverable/campaign
+// mutations' invalidateQueries({ queryKey: ["deliverables"] }) refresh it.
+export function useDeliverablesTable() {
+  return useQuery({
+    queryKey: ["deliverables", "table"],
+    queryFn: async (): Promise<DeliverableTableRow[]> => {
+      const { data, error } = await supabase
+        .from("deliverables")
+        .select(
+          "*, campaigns(name, start_date, end_date, category, status, owners)",
+        )
+        .order("start_date", { ascending: true })
+        .returns<TableEmbed[]>()
+      if (error) throw new Error(error.message)
+      return (data ?? [])
+        .filter((d): d is TableEmbed & { campaigns: NonNullable<TableEmbed["campaigns"]> } => d.campaigns !== null)
+        .map((d) => ({
+          campaign_id: d.campaign_id,
+          deliverable_id: d.id,
+          campaign_name: d.campaigns.name,
+          campaign_start: d.campaigns.start_date,
+          campaign_end: d.campaigns.end_date,
+          category: d.campaigns.category,
+          campaign_status: d.campaigns.status,
+          campaign_owners: d.campaigns.owners,
+          deliverable_title: d.title,
+          deliverable_start: d.start_date,
+          deliverable_end: d.end_date,
+          deliverable_status: d.status,
+          deliverable_owners: d.owners,
+        }))
+    },
+  })
 }
 
 // Deliverables of one campaign, start-date order. Drives the campaign detail page
