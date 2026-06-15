@@ -10,7 +10,7 @@ Ship **50–80% of the features well enough to tell 100% of the story**. The sto
 
 Three tiers — **Implemented** (live in production), **High priority** (queued to build next), **Low priority** (deferred / parked / stretch) — plus a transient **Built, in review** holding area for code-complete work awaiting merge (it moves up to Implemented on deploy). Items carry their build state. Earlier this file tracked a numbered phase sequence; that history lives in git and the merged PRs.
 
-**Current state (2026-06-14):** the foundation, core UI, calendar bars, and deliverable deep linking are live (deep linking shipped in PR #15). Two small navigation affordances (campaign back-to-list link + calendar deliverables opening the deliverable view) are **built and in review** — code-complete on a branch, static checks green, runtime-verified locally, not yet merged/deployed (see below). Two items remain queued as high priority (deliverable start/end dates, table view). Everything else — including the built-but-parked reminder emails — is low priority.
+**Current state (2026-06-14):** the foundation, core UI, calendar bars, deliverable deep linking (PR #15), and the navigation affordances (PR #16) are live. **Deliverable start/end dates** (the calendar/integrity rework) are **built and in review** — code-complete on a branch with a destructive-ish migration, static checks green (see below). That leaves **one** high-priority item queued: the table/exploded view. Everything else — including the built-but-parked reminder emails — is low priority.
 
 ## Implemented (live in production)
 
@@ -18,39 +18,26 @@ Shipped and deployed via merge to `main`. Verification records, acceptance crite
 
 - **Foundation** — the destructive reset migration (`0004_reset_campaigns.sql`), campaign/deliverable schema with multi-owner `text[]`, `schedule-email` re-pointed to `deliverable_id`, and minimal campaign/deliverable CRUD.
 - **Core UI** — campaign list with range filter (inclusive overlap semantics) + status filter; campaign detail with a deliverable status filter and derived completion % (never stored); calendar of deliverables; deep-linkable page routes with URL-derived breadcrumbs.
-- **Calendar bars** — campaigns render as lane-stacked horizontal bars on the month grid with deliverables listed below; bars colored by category, click/keyboard-navigable; the category filter hides bars and chips together.
+- **Calendar bars** — campaigns render as lane-stacked horizontal bars on the month grid; bars colored by category, click/keyboard-navigable; the category filter hides bars and deliverables together.
 - **Deliverable deep linking** (PR #15) — the deliverable route loads standalone on a cold deep link via a single-row `useDeliverable` hook (parent campaign embedded), shows the deliverable's **title** in the breadcrumb, and carries an explicit "← back to campaign" link; a `campaignId`/deliverable mismatch shows not-found in both the page and the breadcrumb (the real title is never surfaced under the wrong campaign). *Decisions:* the edit page doubles as the detail view (no separate read-only route); a campaign mismatch shows not-found rather than redirecting.
+- **Navigation affordances** (PR #16) — campaign detail gained a "← Back to campaigns" link; clicking a deliverable on the calendar opens the deliverable view (campaign bars still open the campaign); a keyboard guard stops the Mail button from also navigating.
 
 ## Built, in review (not yet merged)
 
 Code-complete on a branch, static checks green and runtime-verified locally, awaiting merge + deploy — **not yet live in production.** Each entry moves up to Implemented on deploy.
 
-- **Campaign back-to-list link + calendar deliverable deep-link** — branch `feat-campaign-back-calendar-deliverable-link` (2026-06-14). Two navigation affordances: (1) the campaign detail page gains an explicit "← Back to campaigns" link (mirrors the deliverable page's back link); (2) clicking a deliverable chip on the calendar opens the deliverable view (`/campaigns/:id/deliverables/:id`) instead of the parent campaign — campaign **bars** still open the campaign. Also guards a latent keyboard bug: Enter/Space on the chip's Mail button no longer also navigates. Client-only — no schema/migration. *Verification:* `typecheck`/`lint`/`build` green; **runtime-verified locally** (2026-06-14, local Supabase stack — 6/6 Playwright checks: campaign back link → list, calendar deliverable → deliverable view, keyboard Enter on chip, campaign-bar regression, Mail-button click + keyboard no-navigation); **not yet deployed**.
+- **Deliverable start + end dates (replaces `due_date`)** — branch `feat-deliverable-start-end-dates` (2026-06-14). Deliverables become dated **spans** bounded by their campaign window. Carries a **destructive-ish migration** `0005_deliverable_dates.sql` (adds `start_date`/`end_date`, backfills from `due_date`, **drops `due_date`**, `deliverables_dates_check`, rebuilt reminder index on `end_date`, a deliverable-bounds trigger and a campaign-shrink guard trigger, plus the atomic `update_campaign_clamp` RPC). Client: span inputs + bounds, overlap range query, calendar reworked so deliverables render as bars in a band **below** the campaign bars (deep-link + inline schedule-email preserved), and a campaign date-shrink cascade (partial overflow → atomic clamp confirm; fully-outside → blocked). *Decisions (owner-approved):* deliverable bars in a separate band below; an un-clampable deliverable blocks the campaign save (names the offenders) rather than snapping. *Verification:* `typecheck`/`lint`/`build` green; **runtime-verified locally** (2026-06-14, local Supabase stack): DB guards via psql (out-of-bounds deliverable rejected, plain campaign-shrink orphan rejected, non-date edit allowed, clamp RPC atomic, un-clampable raises + rolls back) and 8/8 Playwright checks (bars below campaigns, deep-link + start–end header, bounded start/end inputs, trigger rejection in-form, shrink→clamp dialog, un-clampable blocked, Mail no-navigation, campaign-bar regression). The prod `due_date→start/end` backfill is verified by SQL inspection only (the local chain starts post-`0005`). **Not yet deployed.**
 
 ## High priority
 
-Two items queued to build next, in order — **1 → 2**. Item 1 (deliverable start/end dates) is bigger than it looks — it reworks the calendar and ripples into the parked reminder path; item 2 (table view) is a real feature and the larger of the two. Each entry notes what it touches in the codebase. (The third backlog item, deliverable deep linking, shipped in PR #15 — see Implemented.)
+One item queued to build next: the table/exploded view. (Deliverable start/end dates moved to *Built, in review*; deliverable deep linking shipped in PR #15.) It notes what it touches in the codebase.
 
-### 1. Deliverable start + end dates (replaces `due_date`) — *bigger than it looks*
-
-Deliverables become dated spans instead of single-day items, bounded by their campaign's window.
-
-- **Decided**: add `start_date` + `end_date`, **remove `due_date`**; both required; date-only. Constraints: `start >= campaign.start`, `end <= campaign.end`, `start <= end`. Campaigns stay bounded (`end_date` required), so a deliverable's end is always bounded.
-- **Enforcement guards BOTH client-written paths** (campaigns and deliverables are both written directly under RLS — no edge function — so Zod/CHECK alone can't protect the cross-table bound):
-  - deliverable insert/update → a trigger that looks up the campaign and rejects out-of-bounds (a CHECK can't reference `campaigns`);
-  - campaign date update → a guard that rejects (or atomically clamps) a `start`/`end` shrink that would orphan existing deliverables.
-  - Zod in the form stays as the UX layer, not the integrity guarantee.
-- **Cascade UX**: when a campaign date edit would push deliverables out of bounds, warn on save and offer auto-clamp or manual fix. **Auto-clamp must be atomic** — the campaign update and the child-deliverable clamp happen in one transaction/RPC (the same one as the campaign-side guard), so a partial apply can never leave orphaned children.
-- **Calendar rework (the real effort)**: [CalendarMonth.tsx](src/components/CalendarMonth.tsx) plots deliverable chips by `due_date`; as spans they render as **bars alongside the campaign bars**. The deliverables range query becomes an overlap query on start/end (mirroring `useCampaignsInRange` in [campaigns.ts](src/lib/campaigns.ts)).
-- **Parked-reminder ripple**: `send-reminders` (PR #11) and the partial index `deliverables_reminder_idx (due_date) where reminded_at is null` both key off `due_date`. The migration must rebuild that index on the new date column, and **un-parking reminders later means choosing `start` or `end` to fire on** — see [docs/archive/phase4-reminders.md](docs/archive/phase4-reminders.md).
-- **Touches**: a new migration (add start/end, backfill from `due_date`, drop `due_date`, `deliverables_dates_check`, rebuilt reminder index, the two bound guards), `database.types.ts`, [schemas.ts](src/lib/schemas.ts) (`deliverableFormSchema` + `deliverablePayload`), [DeliverableForm.tsx](src/components/DeliverableForm.tsx), the new/edit deliverable pages, deliverables.ts (range → overlap, ordering), CalendarMonth.tsx, [campaigns.$id.tsx](src/routes/campaigns.$id.tsx) (show the start–end window).
-
-### 2. Table / spreadsheet "exploded" view — *a feature, the largest item*
+### Table / spreadsheet "exploded" view — *a feature, the largest item*
 
 One flat, sortable, filterable, exportable grid of everything.
 
 - **Grain**: one row = one deliverable, with parent campaign columns denormalized onto the row (grouped/nested rows break column sort). Columns: campaign name/start/end/category/status/owners; deliverable name/start/end/status/owners.
-- **Depends on** the deliverable deep link (built, in review — rows link into it) and item 1 (deliverable start/end columns) — which is why it's last.
+- **Depends on** the deliverable deep link (live, PR #15 — rows link into it) and deliverable start/end (built, in review — supplies the start/end columns) — which is why it's last.
 - **The work**: a new route (e.g. `/table`) + nav link in [__root.tsx](src/routes/__root.tsx) + a Breadcrumbs case + registration in [router.tsx](src/router.tsx); a denormalized query (all deliverables joined with campaign columns, flattened); per-column sort + filter; CSV export of the **current filtered/sorted view** (default), client-side, no dependency (xlsx only if formatting/multi-sheet is ever needed).
 - **Build decision** (flag): hand-built vs. **TanStack Table** (headless; fits the existing TanStack Router/Query stack) — recommend TanStack Table for the sort/filter plumbing at this scope.
 - **Touches**: a new route file, router.tsx, __root.tsx, Breadcrumbs.tsx, a new query hook (deliverables.ts or a new `lib/table.ts`), a small CSV helper.
@@ -67,7 +54,7 @@ Cheap and easy to build. Add another filter on the campaigns tab that does the s
 
 Cheap once the model exists; shows product thinking and saves real season setup time.
 
-> **Depends on High-priority item 1** (deliverable dates): templates must use the same date model deliverables end up with. The offsets below assume the start/end span that replaces `due_date` — build templates *after* item 1 lands, or revisit this entry if that decision changes.
+> **Depends on deliverable start/end dates** (built, in review): templates must use the same date model deliverables end up with. The offsets below assume the start/end span that replaces `due_date` — build templates *after* that lands, or revisit this entry if that decision changes.
 
 - `000N_templates.sql`: `templates` + `template_deliverables` (start + end day-offsets from campaign start), RLS + grants, seeded with two templates: **recruiting** (the 4 standard deliverables) and **fundraising** (announcement, reminder, thank-you).
 - "Create from template" flow: pick template → prefills name/category/goal/segmentation/duration and the deliverable set with computed start/end dates (campaign start + each offset, clamped to the campaign window) → fully editable before and after saving (a starting point, not a lock).

@@ -13,24 +13,23 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useUiStore } from "@/lib/uiStore"
 import { useCampaignsInRange } from "@/lib/campaigns"
-import {
-  monthGridRange,
-  useMonthDeliverables,
-  type CalendarDeliverable,
-} from "@/lib/deliverables"
-import type { CampaignRow } from "@/lib/database.types"
+import { monthGridRange, useMonthDeliverables } from "@/lib/deliverables"
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 const dayKey = (d: Date) => format(d, "yyyy-MM-dd")
 
-// Bar band geometry (px). Bars are absolutely positioned over each week row:
-// the band starts below the day-number line, one lane per overlapping campaign.
+// Bar band geometry (px). Bars are absolutely positioned over each week row.
+// Two stacked bands: campaign bars first, then a thinner deliverable band below.
 const BAND_TOP = 28 // cell padding (4) + day-number block (24)
-const LANE_H = 24 // lane stride
-const BAR_H = 20 // bar height (4px gap between lanes)
+const LANE_H = 24 // campaign lane stride
+const BAR_H = 20 // campaign bar height (4px gap between lanes)
+const DELIV_LANE_H = 22 // deliverable lane stride (thinner band)
+const DELIV_BAR_H = 18 // deliverable bar height
 
-type Segment = {
-  campaign: CampaignRow
+// One packed segment for a single week row: an item (campaign or deliverable)
+// clipped to this week's columns and assigned a lane.
+type PackedSegment<T> = {
+  item: T
   startCol: number // 1..7
   endCol: number // 1..7
   clippedStart: boolean // continues before this week → square left edge
@@ -38,30 +37,37 @@ type Segment = {
   lane: number
 }
 
-// One week's bar layout: campaign segments packed greedily into lanes
-// (first lane whose previous segment ends before this one starts).
-function weekSegments(week: Date[], campaigns: CampaignRow[]): Segment[] {
+// Pack any date-span items into lanes for one week (first lane whose previous
+// segment ends before this one starts). Shared by campaign and deliverable bars —
+// both have id/start_date/end_date, so the geometry is identical; only the visual
+// treatment and the band offset differ.
+function packWeek<
+  T extends { id: string; start_date: string; end_date: string },
+>(week: Date[], items: T[]): PackedSegment<T>[] {
   const weekStart = dayKey(week[0])
   const weekEnd = dayKey(week[6])
-  const segs = campaigns
-    .filter((c) => c.start_date <= weekEnd && c.end_date >= weekStart)
-    .map((c) => {
+  const segs = items
+    .filter((it) => it.start_date <= weekEnd && it.end_date >= weekStart)
+    .map((it) => {
       const startCol =
         Math.max(
-          differenceInCalendarDays(new Date(`${c.start_date}T00:00:00`), week[0]),
+          differenceInCalendarDays(
+            new Date(`${it.start_date}T00:00:00`),
+            week[0],
+          ),
           0,
         ) + 1
       const endCol =
         Math.min(
-          differenceInCalendarDays(new Date(`${c.end_date}T00:00:00`), week[0]),
+          differenceInCalendarDays(new Date(`${it.end_date}T00:00:00`), week[0]),
           6,
         ) + 1
       return {
-        campaign: c,
+        item: it,
         startCol,
         endCol,
-        clippedStart: c.start_date < weekStart,
-        clippedEnd: c.end_date > weekEnd,
+        clippedStart: it.start_date < weekStart,
+        clippedEnd: it.end_date > weekEnd,
         lane: 0,
       }
     })
@@ -81,10 +87,23 @@ function weekSegments(week: Date[], campaigns: CampaignRow[]): Segment[] {
   return segs
 }
 
-// Month view: campaigns as horizontal bars spanning their dates (one segment
-// per week row, lane-stacked when they overlap), deliverables listed below
-// the bars in each day cell. Both are colored by campaign category and
-// filtered by the same category toggles; clicking either opens the campaign.
+const laneCountOf = (segs: PackedSegment<unknown>[]) =>
+  segs.reduce((m, s) => Math.max(m, s.lane + 1), 0)
+
+// Left/width CSS for a segment spanning columns startCol..endCol (1..7), with a
+// 2px gutter so adjacent bars don't touch.
+function segmentStyle(startCol: number, endCol: number) {
+  return {
+    left: `calc(${((startCol - 1) / 7) * 100}% + 2px)`,
+    width: `calc(${((endCol - startCol + 1) / 7) * 100}% - 4px)`,
+  }
+}
+
+// Month view: campaigns AND deliverables both render as horizontal bars spanning
+// their date ranges (one segment per week row, lane-stacked when they overlap).
+// Deliverables sit in a thinner band directly below the campaign bars. Both are
+// colored by campaign category and filtered by the same category toggles; clicking
+// a campaign bar opens the campaign, a deliverable bar opens the deliverable.
 export function CalendarMonth() {
   const { currentMonth, nextMonth, prevMonth, goToday, activeCategories } =
     useUiStore()
@@ -115,18 +134,16 @@ export function CalendarMonth() {
     [campaignsQuery.data, activeCategories],
   )
 
-  // Group the (category-filtered) deliverables by due date for per-cell lookup.
-  const deliverablesByDay = useMemo(() => {
-    const map = new Map<string, CalendarDeliverable[]>()
-    for (const d of deliverables) {
-      const category = d.campaigns?.category
-      if (category && !activeCategories.includes(category)) continue
-      const list = map.get(d.due_date) ?? []
-      list.push(d)
-      map.set(d.due_date, list)
-    }
-    return map
-  }, [deliverables, activeCategories])
+  // Deliverables share the calendar's category filter (via the parent campaign's
+  // category, embedded on the row).
+  const visibleDeliverables = useMemo(
+    () =>
+      deliverables.filter((d) => {
+        const category = d.campaigns?.category
+        return category ? activeCategories.includes(category) : true
+      }),
+    [deliverables, activeCategories],
+  )
 
   function openCampaign(campaignId: string) {
     navigate({ to: "/campaigns/$campaignId", params: { campaignId } })
@@ -180,14 +197,21 @@ export function CalendarMonth() {
         </div>
 
         {weeks.map((week) => {
-          const segments = weekSegments(week, visibleCampaigns)
-          const laneCount = segments.reduce((m, s) => Math.max(m, s.lane + 1), 0)
+          const campaignSegs = packWeek(week, visibleCampaigns)
+          const delivSegs = packWeek(week, visibleDeliverables)
+          const campaignLanes = laneCountOf(campaignSegs)
+          const delivLanes = laneCountOf(delivSegs)
+          // Vertical space the two bands need, reserved inside each day cell so the
+          // cell grows to contain the absolutely-positioned bars.
+          const bandsHeight =
+            campaignLanes * LANE_H + delivLanes * DELIV_LANE_H
+          // Deliverable band starts just below the campaign band.
+          const delivBandTop = BAND_TOP + campaignLanes * LANE_H
           return (
             <div key={dayKey(week[0])} className="relative">
               <div className="grid grid-cols-7">
                 {week.map((day) => {
                   const key = dayKey(day)
-                  const dayItems = deliverablesByDay.get(key) ?? []
                   const inMonth = isSameMonth(day, currentMonth)
                   return (
                     <div
@@ -209,64 +233,28 @@ export function CalendarMonth() {
                           {format(day, "d")}
                         </span>
                       </div>
-                      {/* reserved space the campaign bars float over */}
-                      {laneCount > 0 && (
-                        <div style={{ height: laneCount * LANE_H }} aria-hidden />
+                      {/* reserved space the campaign + deliverable bars float over */}
+                      {bandsHeight > 0 && (
+                        <div style={{ height: bandsHeight }} aria-hidden />
                       )}
-                      <div className="mt-1 grid gap-1">
-                        {dayItems.map((d) => (
-                          <div
-                            key={d.id}
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => openDeliverable(d.campaign_id, d.id)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault() // Space must not scroll the page
-                                openDeliverable(d.campaign_id, d.id)
-                              }
-                            }}
-                            className="group flex cursor-pointer items-start gap-1 rounded px-1.5 py-0.5 text-xs text-white"
-                            style={{
-                              backgroundColor: `var(--cat-${d.campaigns?.category ?? "recruiting"})`,
-                            }}
-                            title={`${d.title} · ${d.campaigns?.name ?? "campaign"}`}
-                          >
-                            <span className="line-clamp-2 min-w-0 flex-1 break-words">
-                              {d.title}
-                            </span>
-                            <button
-                              type="button"
-                              aria-label="Schedule email"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                openScheduleEmail({ id: d.id, title: d.title })
-                              }}
-                              onKeyDown={(e) => e.stopPropagation()}
-                              className="mt-0.5 ml-auto shrink-0 opacity-80 hover:opacity-100"
-                            >
-                              <Mail className="size-3" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
                     </div>
                   )
                 })}
               </div>
 
-              {segments.map((seg) => (
+              {/* Campaign bars — filled pills, top band. */}
+              {campaignSegs.map((seg) => (
                 <div
-                  key={seg.campaign.id}
+                  key={seg.item.id}
                   role="button"
                   tabIndex={0}
-                  data-testid={`campaign-bar-${seg.campaign.id}`}
-                  aria-label={`${seg.campaign.name}, ${seg.campaign.start_date} to ${seg.campaign.end_date}`}
-                  onClick={() => openCampaign(seg.campaign.id)}
+                  data-testid={`campaign-bar-${seg.item.id}`}
+                  aria-label={`${seg.item.name}, ${seg.item.start_date} to ${seg.item.end_date}`}
+                  onClick={() => openCampaign(seg.item.id)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault() // Space must not scroll the page
-                      openCampaign(seg.campaign.id)
+                      openCampaign(seg.item.id)
                     }
                   }}
                   className={cn(
@@ -277,13 +265,60 @@ export function CalendarMonth() {
                   style={{
                     top: BAND_TOP + seg.lane * LANE_H,
                     height: BAR_H,
-                    left: `calc(${((seg.startCol - 1) / 7) * 100}% + 2px)`,
-                    width: `calc(${((seg.endCol - seg.startCol + 1) / 7) * 100}% - 4px)`,
-                    backgroundColor: `var(--cat-${seg.campaign.category})`,
+                    ...segmentStyle(seg.startCol, seg.endCol),
+                    backgroundColor: `var(--cat-${seg.item.category})`,
                   }}
-                  title={`${seg.campaign.name} · ${seg.campaign.category} · ${seg.campaign.start_date} → ${seg.campaign.end_date}`}
+                  title={`${seg.item.name} · ${seg.item.category} · ${seg.item.start_date} → ${seg.item.end_date}`}
                 >
-                  <span className="truncate">{seg.campaign.name}</span>
+                  <span className="truncate">{seg.item.name}</span>
+                </div>
+              ))}
+
+              {/* Deliverable bars — thinner, square-cornered bars in the band
+                  below the campaigns; deep-link to the deliverable, with the
+                  schedule-email quick action inline. */}
+              {delivSegs.map((seg) => (
+                <div
+                  key={seg.item.id}
+                  role="button"
+                  tabIndex={0}
+                  data-testid={`deliverable-bar-${seg.item.id}`}
+                  aria-label={`${seg.item.title}, ${seg.item.start_date} to ${seg.item.end_date}`}
+                  onClick={() => openDeliverable(seg.item.campaign_id, seg.item.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault() // Space must not scroll the page
+                      openDeliverable(seg.item.campaign_id, seg.item.id)
+                    }
+                  }}
+                  className={cn(
+                    "absolute z-10 flex cursor-pointer items-center gap-1 rounded-sm px-1.5 text-[11px] text-white ring-1 ring-white/40 ring-inset hover:opacity-90",
+                    seg.clippedStart && "rounded-l-none",
+                    seg.clippedEnd && "rounded-r-none",
+                  )}
+                  style={{
+                    top: delivBandTop + seg.lane * DELIV_LANE_H,
+                    height: DELIV_BAR_H,
+                    ...segmentStyle(seg.startCol, seg.endCol),
+                    backgroundColor: `var(--cat-${seg.item.campaigns?.category ?? "recruiting"})`,
+                  }}
+                  title={`${seg.item.title} · ${seg.item.campaigns?.name ?? "campaign"} · ${seg.item.start_date} → ${seg.item.end_date}`}
+                >
+                  <span className="min-w-0 flex-1 truncate">
+                    {seg.item.title}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Schedule email"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      openScheduleEmail({ id: seg.item.id, title: seg.item.title })
+                    }}
+                    onKeyDown={(e) => e.stopPropagation()}
+                    className="shrink-0 opacity-80 hover:opacity-100"
+                  >
+                    <Mail className="size-3" />
+                  </button>
                 </div>
               ))}
             </div>

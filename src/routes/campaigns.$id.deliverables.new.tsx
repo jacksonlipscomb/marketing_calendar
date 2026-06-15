@@ -52,9 +52,14 @@ export function NewDeliverablePage() {
       <DeliverableForm
         submitLabel="Create deliverable"
         pending={createDeliverable.isPending}
-        // Default the due date inside the campaign window so a fresh form
-        // starts valid relative to its campaign.
-        defaultValues={{ due_date: campaign.start_date }}
+        campaignStart={campaign.start_date}
+        campaignEnd={campaign.end_date}
+        // Default the span to the campaign's first day so a fresh form starts
+        // valid (in-bounds, end >= start) relative to its campaign.
+        defaultValues={{
+          start_date: campaign.start_date,
+          end_date: campaign.start_date,
+        }}
         onSubmit={async (values) => {
           await createDeliverable.mutateAsync({
             campaign_id: campaignId,

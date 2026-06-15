@@ -5,24 +5,58 @@ import { Mail } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { CampaignForm } from "@/components/CampaignForm"
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton"
 import { StatusFilter } from "@/components/StatusFilter"
 import {
   DELIVERABLE_STATUSES,
+  type DeliverableRow,
   type DeliverableStatus,
 } from "@/lib/database.types"
-import { campaignPayload } from "@/lib/schemas"
+import { campaignPayload, type CampaignFormValues } from "@/lib/schemas"
 import {
   useCampaign,
   useDeleteCampaign,
   useUpdateCampaign,
+  useUpdateCampaignClamp,
 } from "@/lib/campaigns"
 import {
   completionPercent,
   useCampaignDeliverables,
 } from "@/lib/deliverables"
 import { useUiStore } from "@/lib/uiStore"
+
+// Split deliverables by how a new campaign window [start, end] affects them.
+// Dates are yyyy-mm-dd strings, so lexical compare is chronological.
+// - clampable: overflows the window but still has a valid span after clamping
+//   (max(start, newStart) <= min(end, newEnd)) — auto-clamp can fix it.
+// - unclampable: lies entirely outside the new window — clamping would invert the
+//   span, so the campaign save must be blocked until it's fixed/deleted by hand.
+function partitionByBounds(
+  deliverables: DeliverableRow[],
+  newStart: string,
+  newEnd: string,
+) {
+  const clampable: DeliverableRow[] = []
+  const unclampable: DeliverableRow[] = []
+  for (const d of deliverables) {
+    const overflows = d.start_date < newStart || d.end_date > newEnd
+    if (!overflows) continue
+    const clampedStart = d.start_date > newStart ? d.start_date : newStart
+    const clampedEnd = d.end_date < newEnd ? d.end_date : newEnd
+    if (clampedStart > clampedEnd) unclampable.push(d)
+    else clampable.push(d)
+  }
+  return { clampable, unclampable }
+}
 
 // /campaigns/:id — campaign detail: deliverable list + derived completion %
 // above, edit form below, delete at the bottom. Deliverable create/edit are
@@ -33,12 +67,19 @@ export function CampaignDetailPage() {
   const { data: campaign, isLoading, error } = useCampaign(campaignId)
   const deliverablesQuery = useCampaignDeliverables(campaignId)
   const updateCampaign = useUpdateCampaign()
+  const updateCampaignClamp = useUpdateCampaignClamp()
   const deleteCampaign = useDeleteCampaign()
   const openScheduleEmail = useUiStore((s) => s.openScheduleEmail)
   // Page-local: only this list cares, unlike the campaign filters in uiStore.
   const [statusFilter, setStatusFilter] = useState<DeliverableStatus | "all">(
     "all",
   )
+  // When a campaign date edit would clamp existing deliverables, stash the pending
+  // form values and surface a confirm dialog; the atomic clamp RPC runs on confirm.
+  const [pendingClamp, setPendingClamp] = useState<{
+    values: CampaignFormValues
+    count: number
+  } | null>(null)
 
   if (isLoading) {
     return <p className="text-muted-foreground text-sm">Loading campaign…</p>
@@ -92,6 +133,10 @@ export function CampaignDetailPage() {
               {campaign.status.replace("_", " ")}
             </Badge>
           </div>
+          <p className="text-muted-foreground text-sm">
+            {format(new Date(`${campaign.start_date}T00:00:00`), "MMM d, yyyy")}{" "}
+            – {format(new Date(`${campaign.end_date}T00:00:00`), "MMM d, yyyy")}
+          </p>
           <p className="text-muted-foreground text-sm">
             Completion: {percent === null ? "— (no deliverables yet)" : `${percent}%`}
           </p>
@@ -154,7 +199,8 @@ export function CampaignDetailPage() {
                   {d.title}
                 </Link>
                 <p className="text-muted-foreground truncate text-xs">
-                  due {format(new Date(`${d.due_date}T00:00:00`), "MMM d, yyyy")}
+                  {format(new Date(`${d.start_date}T00:00:00`), "MMM d")} –{" "}
+                  {format(new Date(`${d.end_date}T00:00:00`), "MMM d, yyyy")}
                   {d.owners.length > 0 && <> · {d.owners.join(", ")}</>}
                 </p>
               </div>
@@ -193,6 +239,28 @@ export function CampaignDetailPage() {
             reminders_enabled: campaign.reminders_enabled,
           }}
           onSubmit={async (values) => {
+            // Guard the cross-table date bound on the client (UX layer; the DB
+            // triggers are the real guarantee). If the new window would orphan
+            // deliverables, branch before writing.
+            const { clampable, unclampable } = partitionByBounds(
+              deliverables,
+              values.start_date,
+              values.end_date,
+            )
+            if (unclampable.length > 0) {
+              // Can't auto-clamp these — block the save and name them. Thrown here,
+              // caught + shown by CampaignForm's internal error display.
+              throw new Error(
+                `These deliverables fall entirely outside the new dates — fix or delete them first: ${unclampable
+                  .map((d) => d.title)
+                  .join(", ")}`,
+              )
+            }
+            if (clampable.length > 0) {
+              // Defer the write to the confirm dialog (atomic clamp RPC).
+              setPendingClamp({ values, count: clampable.length })
+              return
+            }
             await updateCampaign.mutateAsync({
               id: campaign.id,
               values: campaignPayload(values),
@@ -200,6 +268,58 @@ export function CampaignDetailPage() {
           }}
         />
       </section>
+
+      <Dialog
+        open={pendingClamp !== null}
+        onOpenChange={(o) => !o && setPendingClamp(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adjust deliverables to the new dates?</DialogTitle>
+            <DialogDescription>
+              {pendingClamp?.count} deliverable
+              {pendingClamp?.count === 1 ? "" : "s"} fall outside the new campaign
+              window and will be clamped to fit. This happens in one step with the
+              campaign update.
+            </DialogDescription>
+          </DialogHeader>
+          {updateCampaignClamp.error && (
+            <p className="text-destructive text-sm" role="alert">
+              {(updateCampaignClamp.error as Error).message}
+            </p>
+          )}
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setPendingClamp(null)}
+              disabled={updateCampaignClamp.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={async () => {
+                if (!pendingClamp) return
+                try {
+                  await updateCampaignClamp.mutateAsync({
+                    id: campaign!.id,
+                    ...campaignPayload(pendingClamp.values),
+                  })
+                  setPendingClamp(null)
+                } catch {
+                  // Failure is surfaced via updateCampaignClamp.error inside the
+                  // dialog; swallow the rejection here (no unhandled rejection) and
+                  // keep the dialog open so the user can retry or cancel.
+                }
+              }}
+              disabled={updateCampaignClamp.isPending}
+            >
+              {updateCampaignClamp.isPending ? "Saving…" : "Clamp & save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <section className="grid justify-start gap-2 border-t pt-4">
         <ConfirmDeleteButton

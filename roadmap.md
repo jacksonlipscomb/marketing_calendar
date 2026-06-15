@@ -120,6 +120,27 @@ create index email_jobs_deliverable_id_idx on email_jobs (deliverable_id);
 create index email_jobs_status_sched_idx   on email_jobs (status, scheduled_for);
 ```
 
+> **Update — migration `0005_deliverable_dates.sql` (deliverables are dated spans).**
+> The schema above is what the `0004` reset created. `0005` then replaced
+> `deliverables.due_date` with **`start_date` + `end_date`** (both `not null`,
+> `deliverables_dates_check check (end_date >= start_date)`), backfilling existing
+> rows to single-day spans. A deliverable's span must sit inside its campaign
+> window; because that bound spans two tables, it's enforced by triggers, not a
+> CHECK:
+> - `deliverables_enforce_bounds` (BEFORE INSERT/UPDATE on `deliverables`) rejects a
+>   span outside the parent campaign;
+> - `campaigns_guard_deliverable_bounds` (BEFORE UPDATE on `campaigns`) rejects a
+>   date shrink that would orphan a deliverable;
+> - `update_campaign_clamp(...)` RPC shrinks a campaign **and** clamps overflowing
+>   children atomically (raising when a child lies entirely outside the new window).
+>
+> Indexes moved with the columns: `deliverables_due_date_idx` →
+> `deliverables_start_date_idx` + `deliverables_end_date_idx`, and the partial
+> reminder index is rebuilt on **`end_date`**:
+> `deliverables_reminder_idx on deliverables (end_date) where reminded_at is null`.
+> The deliverables range query becomes an **overlap** query on `start_date`/`end_date`
+> (same inclusive rule as campaigns below).
+
 ### Templates (schema deferred — not in the reset)
 
 Templates are stored as data, in their own later migration, so the foundation carries no unused tables. Template deliverables carry a day-offset from campaign start so "create from template" can compute real due dates. Created campaigns are fully editable afterward — the template is a starting point, not a lock.
@@ -238,7 +259,7 @@ Behavior is the PoC contract with `deliverable_id` replacing `event_id`:
 Invoked once daily by pg_cron via `pg_net` (setup in `structure.md`). No request body; behavior:
 
 1. **Authenticate the caller.** The cron call carries a shared secret in an `x-cron-secret` header. The function compares it to its `CRON_SECRET` function secret: 401 on mismatch, 500 (fail closed) if `CRON_SECRET` is unset. The function deploys with `verify_jwt` disabled (per-function config) — the caller is Postgres, not a user session, so the header check replaces the JWT check. The same secret value lives in **two homes by design**: Vault, where the cron SQL reads it (`vault.decrypted_secrets`), and function secrets, where the function reads it. This is the case Vault actually exists for (a Postgres-side caller needing a secret) — unlike `RESEND_API_KEY`, which stays in function secrets only.
-2. **Find due deliverables** (service role): `due_date` within the lead window (`REMINDER_LEAD_DAYS` function secret, default 3 days), `reminded_at is null`, and the parent campaign has `reminders_enabled = true`.
+2. **Find due deliverables** (service role): **`end_date`** (the deadline — `due_date` was replaced by start/end spans in migration `0005`) within the lead window (`REMINDER_LEAD_DAYS` function secret, default 3 days), `reminded_at is null`, and the parent campaign has `reminders_enabled = true`. *(PR #11's parked code still queries `due_date` and must be re-pointed at `end_date` when un-parking — see [docs/archive/phase4-reminders.md](docs/archive/phase4-reminders.md).)*
 3. **Send one reminder per deliverable** through the same Resend path. Recipient rule: `owners` are display names, so every reminder delivers **only to `ALLOWED_RECIPIENT_EMAIL`**, with the owners named in the subject/body ("Reminder for Jackson, Sam: Newsletter photos due Jun 14"). This is forced by the existing constraints — the shared test sender only delivers to the account owner's address, and the server-side allowlist remains the single recipient guard.
 4. **Record every send as an `email_jobs` row** (`deliverable_id` set), using the existing `sent`/`failed` + `error` pattern.
 5. **Dedupe**: set `reminded_at` on the deliverable only after a successful send. A failed send leaves it null, so the next daily run retries it naturally. Never send when `reminded_at` is already set.

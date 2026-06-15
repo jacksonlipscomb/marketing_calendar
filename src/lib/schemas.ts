@@ -43,13 +43,24 @@ export function campaignPayload(values: CampaignFormValues) {
 }
 
 // Deliverable create/edit form. Direct, RLS-governed writes to `deliverables`.
-export const deliverableFormSchema = z.object({
-  title: z.string().trim().min(1, "Title is required"),
-  details: z.string().trim().optional(),
-  due_date: z.string().min(1, "Due date is required"),
-  owners: z.array(z.string().trim().min(1)),
-  status: z.enum(DELIVERABLE_STATUSES),
-})
+// Deliverables are dated SPANS (start..end). The inclusive end >= start rule the DB
+// enforces (deliverables_dates_check) is mirrored here so the user sees a field
+// error rather than a constraint violation; the cross-table bound against the
+// campaign window is a DB trigger (see migration 0005), surfaced via the form's
+// submit-error catch.
+export const deliverableFormSchema = z
+  .object({
+    title: z.string().trim().min(1, "Title is required"),
+    details: z.string().trim().optional(),
+    start_date: z.string().min(1, "Start date is required"),
+    end_date: z.string().min(1, "End date is required"),
+    owners: z.array(z.string().trim().min(1)),
+    status: z.enum(DELIVERABLE_STATUSES),
+  })
+  .refine((v) => v.end_date >= v.start_date, {
+    message: "End date must be on or after the start date",
+    path: ["end_date"],
+  })
 export type DeliverableFormValues = z.infer<typeof deliverableFormSchema>
 
 // Form values -> insert/update payload: empty optional strings become null.
@@ -57,7 +68,8 @@ export function deliverablePayload(values: DeliverableFormValues) {
   return {
     title: values.title,
     details: values.details?.trim() ? values.details : null,
-    due_date: values.due_date,
+    start_date: values.start_date,
+    end_date: values.end_date,
     owners: values.owners,
     status: values.status,
   }

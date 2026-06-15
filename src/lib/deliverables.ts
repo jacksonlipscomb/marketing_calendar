@@ -34,6 +34,10 @@ export type CalendarDeliverable = DeliverableRow & {
   } | null
 }
 
+// Deliverables are dated SPANS, so "in range" is an OVERLAP query, bounds
+// inclusive — same rule as useCampaignsInRange in campaigns.ts. A deliverable
+// straddling the window edge appears in the window. Do not "fix" this to
+// containment (start_date >= range start), which drops straddling spans.
 export function useDeliverablesInRange(start: Date, end: Date) {
   return useQuery({
     queryKey: ["deliverables", "range", fmt(start), fmt(end)],
@@ -41,9 +45,9 @@ export function useDeliverablesInRange(start: Date, end: Date) {
       const { data, error } = await supabase
         .from("deliverables")
         .select("*, campaigns(name, category)")
-        .gte("due_date", fmt(start))
-        .lte("due_date", fmt(end))
-        .order("due_date", { ascending: true })
+        .lte("start_date", fmt(end))
+        .gte("end_date", fmt(start))
+        .order("start_date", { ascending: true })
         .returns<CalendarDeliverable[]>()
       if (error) throw new Error(error.message)
       return data ?? []
@@ -56,7 +60,7 @@ export function useMonthDeliverables(month: Date) {
   return useDeliverablesInRange(start, end)
 }
 
-// Deliverables of one campaign, due-date order. Drives the campaign detail page
+// Deliverables of one campaign, start-date order. Drives the campaign detail page
 // and the derived completion percentage.
 export function useCampaignDeliverables(campaignId: string) {
   return useQuery({
@@ -66,17 +70,18 @@ export function useCampaignDeliverables(campaignId: string) {
         .from("deliverables")
         .select("*")
         .eq("campaign_id", campaignId)
-        .order("due_date", { ascending: true })
+        .order("start_date", { ascending: true })
       if (error) throw new Error(error.message)
       return data ?? []
     },
   })
 }
 
-// A single deliverable plus its parent campaign's name. Mirrors the embed shape
-// of CalendarDeliverable above (campaign embedded as a to-one object).
+// A single deliverable plus its parent campaign's name AND window. The window
+// (start/end) feeds the edit form's date-input min/max so the page doesn't need a
+// second campaign fetch; the name still powers the "back to campaign" label.
 export type DeliverableWithCampaign = DeliverableRow & {
-  campaigns: { name: string } | null
+  campaigns: { name: string; start_date: string; end_date: string } | null
 }
 
 // One deliverable by its OWN id (not via the campaign list + .find()), so the
@@ -91,7 +96,7 @@ export function useDeliverable(id: string) {
     queryFn: async (): Promise<DeliverableWithCampaign | null> => {
       const { data, error } = await supabase
         .from("deliverables")
-        .select("*, campaigns(name)")
+        .select("*, campaigns(name, start_date, end_date)")
         .eq("id", id)
         .returns<DeliverableWithCampaign[]>()
         .maybeSingle()
