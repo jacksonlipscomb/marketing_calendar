@@ -7,9 +7,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      # Pin the CLI version: `latest` makes the action resolve the newest release
+      # over the network at deploy time, which 504'd once ("Failed to resolve
+      # latest Supabase CLI release: Gateway Time-out"). A pinned version skips that
+      # lookup and matches the `supabase` devDependency / local CLI.
       - uses: supabase/setup-cli@v2
         with:
-          version: latest
+          version: 2.105.0
       # db push only works against a linked project; the runner starts unlinked,
       # so link explicitly first (non-interactive via SUPABASE_DB_PASSWORD).
       - name: Link project
@@ -29,6 +33,10 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
   deploy-frontend:
+    # Gate on the DB job: a migration-bearing deploy must not ship a frontend
+    # against an un-migrated schema. If deploy-supabase fails (incl. a flake), the
+    # frontend deploy is held until it's re-run green.
+    needs: deploy-supabase
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
