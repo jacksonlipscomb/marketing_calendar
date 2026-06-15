@@ -32,6 +32,13 @@ export function RootLayout() {
             >
               Campaigns
             </Link>
+            <Link
+              to="/table"
+              className="hover:underline"
+              activeProps={{ className: "font-medium underline" }}
+            >
+              Table
+            </Link>
           </nav>
         </div>
       </header>

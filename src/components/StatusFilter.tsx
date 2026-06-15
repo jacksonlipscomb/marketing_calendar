@@ -1,21 +1,23 @@
 import { cn } from "@/lib/utils"
 
-// Generic single-select status filter ("All" + the given statuses). Used with
-// campaign statuses on the list page and deliverable statuses on the detail
-// page — the option set is the only difference.
+// Generic single-select chip filter ("All" + the given options). Used for
+// campaign/deliverable statuses (and, with a label, the table's category and
+// status filters) — the option set and label are the only differences.
 export function StatusFilter<T extends string>({
   options,
   value,
   onChange,
+  label = "Status:",
 }: {
   options: readonly T[]
   value: T | "all"
   onChange: (status: T | "all") => void
+  label?: string
 }) {
   const all: (T | "all")[] = ["all", ...options]
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="text-muted-foreground text-sm">Status:</span>
+      <span className="text-muted-foreground text-sm">{label}</span>
       {all.map((status) => (
         <button
           key={status}

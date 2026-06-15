@@ -36,9 +36,10 @@ function DeliverableName({
 export function Breadcrumbs() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const segments = pathname.split("/").filter(Boolean)
-  if (segments.length === 0 || segments[0] !== "campaigns") return null
-
-  const [, campaignSegment, deliverablesSegment, deliverableSegment] = segments
+  // The trail only applies to the campaigns flow and the flat table page; the
+  // calendar home page is the trail's root and shows no crumbs.
+  if (segments.length === 0) return null
+  if (segments[0] !== "campaigns" && segments[0] !== "table") return null
 
   const crumbs: { key: string; node: ReactNode; current?: boolean }[] = [
     {
@@ -46,6 +47,13 @@ export function Breadcrumbs() {
       node: <Link to="/" className="hover:underline">Calendar</Link>,
     },
   ]
+
+  if (segments[0] === "table") {
+    crumbs.push({ key: "table", node: "Table", current: true })
+    return <BreadcrumbTrail crumbs={crumbs} />
+  }
+
+  const [, campaignSegment, deliverablesSegment, deliverableSegment] = segments
 
   if (!campaignSegment) {
     crumbs.push({ key: "campaigns", node: "Campaigns", current: true })
@@ -96,6 +104,14 @@ export function Breadcrumbs() {
     }
   }
 
+  return <BreadcrumbTrail crumbs={crumbs} />
+}
+
+function BreadcrumbTrail({
+  crumbs,
+}: {
+  crumbs: { key: string; node: ReactNode; current?: boolean }[]
+}) {
   return (
     <nav
       aria-label="Breadcrumb"

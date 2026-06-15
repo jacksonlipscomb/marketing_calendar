@@ -49,6 +49,12 @@ route around it.
   campaigns" link; clicking a deliverable chip on the calendar opens the deliverable
   view (`/campaigns/:id/deliverables/:id`) — campaign **bars** still open the
   campaign; a keyboard guard stops the chip's Mail button from also navigating.
+- **Deliverable start+end dates** (PR #19) — deliverables are dated **spans**
+  bounded by their campaign window, rendering as bars in a band below the campaign
+  bars. Migration `0005` (dropped `due_date`, rebuilt the reminder index on
+  `end_date`) + cross-table guards (deliverable-bounds trigger, campaign-shrink
+  guard trigger, atomic `update_campaign_clamp` RPC) + the date-shrink cascade UX.
+  Un-parking `send-reminders` later means re-pointing its selection at `end_date`.
 
 **Built but PARKED — not in production (`send-reminders`, PR #11 open):**
 - The scheduled reminder edge function is written, locally verified, review-
@@ -57,19 +63,19 @@ route around it.
 - Full spec, verification record, and the activation checklist: **`docs/archive/phase4-reminders.md`**.
 
 **Built, in review (not yet merged — `features.md` → Built, in review):**
-- **Deliverable start+end dates replacing `due_date`** — branch
-  `feat-deliverable-start-end-dates`. Deliverables become dated spans (calendar
-  bars in a band below the campaign bars); carries the destructive-ish migration
-  `0005_deliverable_dates.sql` (drops `due_date`), a deliverable-bounds trigger +
-  a campaign-shrink guard trigger + the atomic `update_campaign_clamp` RPC, and the
-  campaign date-shrink cascade UX (partial overflow → clamp confirm, fully-outside →
-  blocked). Static checks green; **runtime-verified locally** (local Supabase stack:
-  psql DB-guard checks + 8/8 Playwright UI); prod backfill verified by SQL
-  inspection only; **not yet deployed.**
+- **Table / "exploded" view** — branch `feat-table-view`. A new top-level `/table`
+  page: one flat grid, one row per deliverable with the parent campaign denormalized
+  onto the row; every column sortable; chip filters (category, campaign status,
+  deliverable status) + global name/owner search; CSV export of the current
+  filtered/sorted view. Built on **TanStack Table** (new `@tanstack/react-table`
+  dep); client-only, **no migration.** Static checks green; runtime-verified
+  locally (Playwright); **not yet deployed.**
 
-**Queued, NOT built (high-priority backlog — `features.md` → High priority):**
-- table/"exploded" grid view (depends on the start/end work above — supplies its
-  start/end columns).
+**Queued, NOT built (high-priority backlog):**
+- **None — the high-priority tier is empty.** Every queued breadth feature has
+  shipped (PRs #15/#16/#19) or is in review (table view). Next pickups come from
+  `features.md` → Low priority (campaign-view category filter, single-day
+  deliverable option, templates, parked reminders, stretch UI) or owner reprioritization.
 
 **Low priority / deferred:** campaign templates, the parked reminders, stretch UI
 (week view, text wrapping, drawer), and a new "filter campaigns by category on the
@@ -193,16 +199,15 @@ filter). See `features.md` → Low priority.
 
 ## 8. Likely next task
 
-**Finish landing the deliverable start/end work** (branch
-`feat-deliverable-start-end-dates`, built + static-green, in review): run the
-local-stack runtime verification, then open the PR with the destructive-change
-callout (migration `0005` drops `due_date`; CI `db push` applies it to prod on
-merge). The PR also **rebuilt the parked reminder index on `end_date`** and
-updated `docs/archive/phase4-reminders.md` — un-parking `send-reminders` later
-means pointing its (still `due_date`-based) selection query at `end_date`.
-
-After that merges, the remaining high-priority item is the **table/"exploded"
-view** (`features.md` → High priority) — it depends on the start/end columns. The
-deep-link and navigation work that used to head the backlog is merged/live.
-(Cheap low-pri alternative for a quick win: the "filter campaigns by category on
-the campaigns tab" item.)
+**The high-priority tier is empty** — the table/"exploded" view (the last queued
+item) is built and in review on branch `feat-table-view`; once its PR merges,
+every queued breadth feature is done. So the next task is **owner's pick from the
+Low-priority tier** (`features.md` → Low priority), most of which are quick wins:
+- "Filter campaigns by category on the Campaigns tab" — cheapest; mirror the
+  calendar's category filter on the campaigns list (the table page's page-local
+  chip-filter pattern is a ready template).
+- "Single-day option for deliverables" — a checkbox that collapses the start/end
+  inputs into one date (writes `start_date == end_date`).
+- Campaign templates (needs a `00xx_templates.sql`), un-parking reminders
+  (`send-reminders` re-pointed to `end_date` — see §2 / the archive doc), or the
+  stretch UI items.

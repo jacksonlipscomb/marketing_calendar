@@ -10,6 +10,7 @@ import { NewCampaignPage } from "./routes/campaigns.new"
 import { CampaignDetailPage } from "./routes/campaigns.$id"
 import { NewDeliverablePage } from "./routes/campaigns.$id.deliverables.new"
 import { EditDeliverablePage } from "./routes/campaigns.$id.deliverables.$deliverableId"
+import { TablePage } from "./routes/table"
 
 const rootRoute = createRootRoute({ component: RootLayout })
 
@@ -25,6 +26,12 @@ const campaignsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/campaigns",
   component: CampaignsPage,
+})
+
+const tableRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/table",
+  component: TablePage,
 })
 
 const newCampaignRoute = createRoute({
@@ -54,6 +61,7 @@ const editDeliverableRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   indexRoute,
   campaignsRoute,
+  tableRoute,
   newCampaignRoute,
   campaignDetailRoute,
   newDeliverableRoute,
