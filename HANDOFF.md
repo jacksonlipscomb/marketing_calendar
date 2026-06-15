@@ -61,6 +61,10 @@ route around it.
   column sortable (keyboard-operable); chip filters (category, campaign + deliverable
   status) + global name/owner search; CSV export of the current filtered/sorted view.
   Built on **TanStack Table** (`@tanstack/react-table`); client-only, no migration.
+- **Single day option for deliverables** (PR #23) — a "Single day" checkbox above
+  the deliverable date inputs collapses Start/End into one Date box (writes the same
+  value to both); initializes checked when `start == end`. UI-only in
+  `DeliverableForm.tsx`.
 
 **Built but PARKED — not in production (`send-reminders`, PR #11 open):**
 - The scheduled reminder edge function is written, locally verified, review-
@@ -69,18 +73,19 @@ route around it.
 - Full spec, verification record, and the activation checklist: **`docs/archive/phase4-reminders.md`**.
 
 **Built, in review (not yet merged):**
-- **None right now** — nothing is awaiting merge.
+- **Category filter on the Campaigns tab** — branch `feat-campaign-category-filter`.
+  Adds the calendar's category chip filter to the campaigns list (server-side via
+  `.in("category", …)` in `useCampaigns`), with its own `campaignCategories` store
+  state **independent** of the calendar's `activeCategories`. `CategoryFilter` was
+  made presentational so both tabs reuse it. Client-only, no migration.
 
 **Queued, NOT built (high-priority backlog):**
-- **None — all high-priority features are shipped and live** (PRs #15/#16/#19/#20).
-  The tier is empty and nothing is in review. Next pickups come from
-  `features.md` → Low priority (campaign-view category filter, single-day
-  deliverable option, templates, parked reminders, stretch UI) or owner reprioritization.
+- **None — the high-priority tier is empty** (all shipped: PRs #15/#16/#19/#20).
 
-**Low priority / deferred:** campaign templates, the parked reminders, stretch UI
-(week view, text wrapping, drawer), and a new "filter campaigns by category on the
-campaigns tab" idea (PR #17 added it to the backlog; mirrors the calendar's category
-filter). See `features.md` → Low priority.
+**Low priority / deferred:** campaign templates, the parked reminders, and stretch UI
+(week view, text wrapping, drawer). The campaign-tab category filter (in review) and
+the single-day deliverable option (PR #23, live) have graduated off this list. See
+`features.md` → Low priority.
 
 ## 3. Open PRs / branch state
 
@@ -88,12 +93,13 @@ filter). See `features.md` → Low priority.
   intentionally; **currently CONFLICTING** with `main` (its `features.md` /
   `structure.md` edits are superseded by later docs). That's expected — leave it;
   when un-parking, rebase onto `main` and drop the stale doc edits.
-- **Everything else is merged.** Recent: #15 (deliverable deep linking), #16
-  (campaign back link + calendar deliverable deep-link), #17 (CI Node-24 bumps),
-  #18 (handoff docs), #19 (deliverable start/end spans + migration `0005`), #20
-  (table/exploded view), #21 (deploy hardening — pinned Supabase CLI + frontend
-  gated on the DB job). `main` tip is `6374545` (the #21 merge); merged head
-  branches are auto-deleted.
+- **`feat-campaign-category-filter`** — the campaigns-tab category filter, open for
+  review (client-only).
+- **Everything else is merged.** Recent: #19 (deliverable start/end spans + migration
+  `0005`), #20 (table/exploded view), #21 (deploy hardening — pinned Supabase CLI +
+  frontend gated on the DB job), #22 (docs: high-priority complete), #23 (single-day
+  deliverable option). `main` tip is `f2ba7ec` (the #23 merge); merged head branches
+  are auto-deleted.
 
 ## 4. Data model & code map (detail in roadmap.md / structure.md)
 
@@ -206,15 +212,15 @@ filter). See `features.md` → Low priority.
 
 ## 8. Likely next task
 
-**All high-priority features are shipped and live** (the table/"exploded" view, the
-last queued item, merged as PR #20). The high-priority tier is empty and nothing is
-in review. So the next task is **owner's pick from the Low-priority tier**
-(`features.md` → Low priority), most of which are quick wins:
-- "Filter campaigns by category on the Campaigns tab" — cheapest; mirror the
-  calendar's category filter on the campaigns list (the table page's page-local
-  chip-filter pattern is a ready template).
-- "Single-day option for deliverables" — a checkbox that collapses the start/end
-  inputs into one date (writes `start_date == end_date`).
-- Campaign templates (needs a `00xx_templates.sql`), un-parking reminders
-  (`send-reminders` re-pointed to `end_date` — see §2 / the archive doc), or the
-  stretch UI items.
+**All high-priority features are shipped and live**, and the two cheapest
+Low-priority wins are done too — the single-day deliverable option (PR #23, live)
+and the campaigns-tab category filter (in review on `feat-campaign-category-filter`).
+So the next task is **owner's pick from what remains in the Low-priority tier**
+(`features.md` → Low priority):
+- **Campaign templates** — needs a `00xx_templates.sql` (`templates` +
+  `template_deliverables` with start/end day-offsets) + a "create from template"
+  flow; the start/end date model it depends on is live. The largest remaining item.
+- **Un-park reminders** — merge/rebase PR #11 and re-point `send-reminders`'
+  selection from `due_date` to `end_date` (see §2 / `docs/archive/phase4-reminders.md`),
+  then the one-time cron/Vault setup.
+- **Stretch UI** — week-view mode, week-mode text wrapping, the drawer pattern.

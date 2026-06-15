@@ -23,10 +23,11 @@ Shipped and deployed via merge to `main`. Verification records, acceptance crite
 - **Navigation affordances** (PR #16) — campaign detail gained a "← Back to campaigns" link; clicking a deliverable on the calendar opens the deliverable view (campaign bars still open the campaign); a keyboard guard stops the Mail button from also navigating.
 - **Deliverable start + end dates** (PR #19) — deliverables are dated **spans** bounded by their campaign window, rendering as bars in a band below the campaign bars. Migration `0005` (added `start_date`/`end_date`, dropped `due_date`, rebuilt the reminder index on `end_date`) plus the cross-table guards: a deliverable-bounds trigger, a campaign-shrink guard trigger, and the atomic `update_campaign_clamp` RPC. UI: span inputs with campaign bounds, overlap range query, and a campaign date-shrink cascade (partial overflow → atomic clamp confirm; un-clampable → blocked, offenders named).
 - **Table / "exploded" view** (PR #20) — a top-level `/table` page: one flat grid, **one row per deliverable** with the parent campaign's columns denormalized onto the row; every column sortable (keyboard-operable headers); filterable; CSV-exportable. Built on **TanStack Table**. Filters: a global text search over names/owners + page-local chip filters for category, campaign status, and deliverable status (they don't touch the calendar's filter). The deliverable-title cell deep-links into the deliverable view; CSV exports the current filtered/sorted view (11 visible columns) via a dependency-free `src/lib/csv.ts`. A `useUpdateCampaign` cache fix keeps the denormalized rows fresh after a campaign edit. *Decisions:* TanStack Table over hand-built; enum chips + global search over per-column inputs. *Known limitation:* grain is per-deliverable, so a campaign with no deliverables produces no rows.
+- **Single day option for deliverables** (PR #23) — a "Single day" checkbox above the deliverable date inputs collapses the Start/End pair into one "Date" box (writing the same value to both `start_date`/`end_date`); unchecking restores the range inputs. Initializes checked when `start == end`. UI-only in `DeliverableForm.tsx`.
 
 ## Built, in review (not yet merged)
 
-_None right now — nothing is awaiting merge._ (This is a transient holding area; entries land here code-complete and move up to Implemented on deploy.)
+- **Category filter on the Campaigns tab** — branch `feat-campaign-category-filter`. Adds the calendar's category chip filter to the campaigns list (multi-select toggles, all-on by default), filtering the `useCampaigns` query server-side via `.in("category", …)`. Its state (`campaignCategories`) is **independent** of the calendar's (`activeCategories`). `CategoryFilter` was made presentational (props) so both tabs reuse it. Client-only — no schema. *Verification:* static green; runtime-verified locally (Playwright). **Not yet deployed.**
 
 ## High priority
 
@@ -34,15 +35,7 @@ _None right now — nothing is awaiting merge._ (This is a transient holding are
 
 ## Low priority
 
-Deferred, parked, or stretch — none blocks the demo story.
-
-### Filter by category on Campaign View - *not built*
-
-Cheap and easy to build. Add another filter on the campaigns tab that does the same thing as the filter on the Calendar tab: filters campaigns by Recruiting, Retention, Regatta, and Fundraising. This should be an easy implementation.
-
-### Single day option for deliverables - *built, in review*
-
-A "Single day" checkbox above the deliverable date inputs collapses the Start/End pair into one "Date" box (writing the same value to both `start_date` and `end_date`); unchecking restores the range inputs. The checkbox initializes from the data — checked when `start == end`. UI-only, in `DeliverableForm.tsx` (no schema/payload change). Branch `feat-single-day-deliverable`.
+Deferred, parked, or stretch — none blocks the demo story. (The campaign-tab category filter and the single-day deliverable option have shipped / are in review — see the sections above.)
 
 ### Campaign templates — *not built*
 

@@ -1,25 +1,30 @@
 import { cn } from "@/lib/utils"
-import { useUiStore } from "@/lib/uiStore"
-import { CAMPAIGN_CATEGORIES } from "@/lib/database.types"
+import { CAMPAIGN_CATEGORIES, type CampaignCategory } from "@/lib/database.types"
 
-// Campaign-category filter. Pure toggle UI over useUiStore.activeCategories —
-// CalendarMonth already filters what it renders by that array, so flipping a
-// toggle here updates the calendar with no extra wiring.
-export function CategoryFilter() {
-  const { activeCategories, toggleCategory } = useUiStore()
-
+// Presentational campaign-category toggle filter. Controlled by the caller so the
+// same UI serves the calendar (wired to uiStore.activeCategories) and the campaign
+// list (wired to uiStore.campaignCategories) — two independent selections.
+export function CategoryFilter({
+  value,
+  onToggle,
+  label = "Show:",
+}: {
+  value: CampaignCategory[]
+  onToggle: (category: CampaignCategory) => void
+  label?: string
+}) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="text-muted-foreground text-sm">Show:</span>
+      <span className="text-muted-foreground text-sm">{label}</span>
       {CAMPAIGN_CATEGORIES.map((category) => {
-        const active = activeCategories.includes(category)
+        const active = value.includes(category)
         return (
           <button
             key={category}
             type="button"
             aria-pressed={active}
             data-testid={`filter-${category}`}
-            onClick={() => toggleCategory(category)}
+            onClick={() => onToggle(category)}
             className={cn(
               "rounded-full border px-3 py-1 text-xs font-medium capitalize transition-colors",
               active
