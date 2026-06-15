@@ -183,7 +183,7 @@ Runs on pull requests: `npm ci`, lint, typecheck, `npm test --if-present`, build
 
 This is the **target state**. On `main` the deploy job only deploys `schedule-email`. The `Deploy send-reminders` step shown below lands with PR #11 (parked) alongside the function itself — it must not be added to CI before the function file exists, or every merge to main fails deploying a directory that isn't there.
 
-Two real differences from the literal `main` workflow: the runner actions were bumped to Node 24 (PR #17 — `checkout@v6`, `setup-node@v6`, `setup-cli@v2`, `wrangler-action@v4`), and PR #21 **pinned the Supabase CLI** (`version: 2.105.0`, not `latest`) and added `needs: deploy-supabase` to `deploy-frontend`. The pin avoids a flaky latest-release lookup that 504'd once; the gate stops the frontend shipping when the DB job fails.
+Two recent updates shown above are **already on `main`**: the runner actions were bumped to Node 24 (PR #17 — `checkout@v6`, `setup-node@v6`, `setup-cli@v2`, `wrangler-action@v4`), and PR #21 **pinned the Supabase CLI** (`version: 2.105.0`, not `latest`) and added `needs: deploy-supabase` to `deploy-frontend`. The pin avoids a flaky latest-release lookup that 504'd once; the gate stops the frontend shipping when the DB job fails. The one thing above that is *not* on `main` is the parked `Deploy send-reminders` step (PR #11).
 
 ```yaml
 name: Deploy
