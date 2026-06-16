@@ -17,7 +17,8 @@ marketing-calendar/
       CampaignForm.tsx         # shared create/edit campaign form (page pattern)
       DeliverableForm.tsx      # shared create/edit deliverable form (page pattern)
       OwnersInput.tsx          # tag-style input for owners text[] (never comma-joined)
-      CategoryFilter.tsx       # campaign-category toggles (filter bars + chips together)
+      CategoryFilter.tsx       # presentational category toggles, reused by the calendar
+                               #   (activeCategories) and the campaigns list (campaignCategories)
       Breadcrumbs.tsx          # URL-derived trail (campaign id segment resolved to name)
       ConfirmDeleteButton.tsx  # destructive-action guard for cascade deletes
       RangeFilter.tsx          # day/week/month/quarter/year/all, overlap semantics
@@ -31,22 +32,24 @@ marketing-calendar/
       auth.ts                  # ensureSession() — anonymous sign-in
       database.types.ts        # hand-written types mirroring the migrations
       schemas.ts               # Zod schemas + form→payload mappers
-      campaigns.ts             # campaign hooks + rangeBounds + overlap queries (list + calendar window)
-      deliverables.ts          # deliverable hooks + monthGridRange + derived completionPercent
+      campaigns.ts             # campaign hooks + rangeBounds + overlap queries (list w/ range+status+category, calendar window)
+      deliverables.ts          # deliverable hooks (incl. flat useDeliverablesTable) + monthGridRange + completionPercent
+      csv.ts                   # dependency-free CSV builder + download (the table view's export)
       templates.ts             # template hooks + create-from-template (planned — low priority)
       emailJobs.ts             # useScheduleEmail (invoke fn), useUpcomingSends
-      uiStore.ts               # Zustand UI state (month, category + range + status filters, schedule dialog)
+      uiStore.ts               # Zustand UI state (month, calendar + campaign-list category/range/status filters, schedule dialog)
       queryClient.ts
       utils.ts
     router.tsx                 # code-based TanStack Router (all routes registered here)
     routes/                    # page pattern: every page is a real URL (deep-linkable)
       __root.tsx               # app shell: nav + URL-derived breadcrumbs + schedule dialog
       index.tsx                # calendar page
-      campaigns.index.tsx      # /campaigns — list with range (overlap) + status filters
+      campaigns.index.tsx      # /campaigns — list with range (overlap) + status + category filters
       campaigns.new.tsx        # /campaigns/new — create form (page, not overlay)
       campaigns.$id.tsx        # /campaigns/:id — deliverables, completion %, edit, delete
       campaigns.$id.deliverables.new.tsx              # /campaigns/:id/deliverables/new
       campaigns.$id.deliverables.$deliverableId.tsx   # …/deliverables/:id — edit + delete
+      table.tsx                # /table — flat row-per-deliverable grid (TanStack Table): sort/filter/CSV
     index.css                  # Tailwind v4 entry (@import "tailwindcss") + theme
   public/
     _redirects                 # SPA fallback: /* /index.html 200
@@ -55,6 +58,7 @@ marketing-calendar/
     migrations/
       0001..0003               # PoC migrations (already applied; never edit applied migrations)
       0004_reset_campaigns.sql # DESTRUCTIVE reset: drops PoC tables, creates campaign model + grants
+      0005_deliverable_dates.sql # deliverable start/end spans (drops due_date) + bound triggers + clamp RPC
       000N_templates.sql       # templates tables + grants (planned — low priority)
     functions/
       schedule-email/index.ts  # manual send path (re-pointed to deliverable_id)
@@ -171,13 +175,15 @@ Unchanged from the PoC:
 
 Two workflows, same shape as the PoC. CI gates merges; deploy runs after merge.
 
-### `.github/workflows/ci.yml` — unchanged
+### `.github/workflows/ci.yml`
 
-Runs on pull requests: `npm ci`, lint, typecheck, `npm test --if-present`, build.
+Runs on pull requests: `npm ci`, lint, typecheck, `npm test --if-present`, build. Same steps as the PoC; its runner actions were bumped to Node 24 with the rest (PR #17). It does **not** use `supabase/setup-cli` — only `deploy.yml` does.
 
 ### `.github/workflows/deploy.yml` — deploys the live function (+ a parked step)
 
 This is the **target state**. On `main` the deploy job only deploys `schedule-email`. The `Deploy send-reminders` step shown below lands with PR #11 (parked) alongside the function itself — it must not be added to CI before the function file exists, or every merge to main fails deploying a directory that isn't there.
+
+Two recent updates shown above are **already on `main`**: the runner actions were bumped to Node 24 (PR #17 — `checkout@v6`, `setup-node@v6`, `setup-cli@v2`, `wrangler-action@v4`), and PR #21 **pinned the Supabase CLI** (`version: 2.105.0`, not `latest`) and added `needs: deploy-supabase` to `deploy-frontend`. The pin avoids a flaky latest-release lookup that 504'd once; the gate stops the frontend shipping when the DB job fails. The one thing above that is *not* on `main` is the parked `Deploy send-reminders` step (PR #11).
 
 ```yaml
 name: Deploy
@@ -188,10 +194,10 @@ jobs:
   deploy-supabase:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: supabase/setup-cli@v1
+      - uses: actions/checkout@v6
+      - uses: supabase/setup-cli@v2
         with:
-          version: latest
+          version: 2.105.0   # pinned (PR #21): `latest` resolves the newest release over the network and 504'd once
       - name: Link project   # db push requires a linked project; runners start unlinked
         run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
         env:
@@ -213,12 +219,13 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
   deploy-frontend:
+    needs: deploy-supabase   # PR #21: gate on the DB job so a frontend never ships against an un-migrated schema
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 20    # the build runtime — separate from the runner actions (Node 24); left as-is
           cache: npm
       - run: npm ci
       - run: npm run build
@@ -231,7 +238,7 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      - uses: cloudflare/wrangler-action@v3
+      - uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

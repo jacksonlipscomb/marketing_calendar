@@ -23,10 +23,11 @@ The browser writes campaigns and deliverables directly through the JS client und
 
 In scope:
 - Real Supabase persistence, real RLS (no "allow all" on `email_jobs` writes).
-- Campaign/deliverable model with multi-owner `text[]` fields.
-- Range-filtered campaign lists (day/week/month/quarter/year/all) with overlap semantics, plus status filters on campaigns and deliverables.
+- Campaign/deliverable model with multi-owner `text[]` fields; deliverables are dated **spans** (`start_date`/`end_date`, migration `0005`), bounded to their campaign window by DB triggers.
+- Range-filtered campaign lists (day/week/month/quarter/year/all) with overlap semantics, plus status and category filters on the campaign list (the calendar carries its own independent category filter); status filters on deliverables.
 - Derived campaign completion percentage.
-- Calendar campaign bars (shipped), reminder emails via pg_cron (built, parked), and campaign templates (deferred) — see `features.md` for current status and priority.
+- A flat, sortable/filterable/CSV-exportable **table view** of every deliverable (`/table`).
+- Calendar campaign + deliverable span bars (shipped), reminder emails via pg_cron (built, parked), and campaign templates (deferred) — see `features.md` for current status and priority.
 
 Out of scope:
 - Multi-tenant or per-user authorization; the team remains a single anonymous-authenticated unit.

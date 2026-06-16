@@ -1,16 +1,17 @@
 # Handoff — Marketing Calendar (campaign/deliverable build)
 
-> **Current as of 2026-06-14.** The original events-based PoC was replaced by a
+> **Current as of 2026-06-15.** The original events-based PoC was replaced by a
 > campaign/deliverable rewrite. **All high-priority features are shipped and live
 > in production:** foundation, core UI, calendar bars, deliverable deep linking
 > (PR #15), navigation affordances (PR #16), deliverable start/end spans (PR #19),
-> and the table/exploded view (PR #20). CI/Deploy actions were bumped to Node 24
-> (PR #17) and the deploy was hardened against a flaky Supabase-CLI lookup (PR #21).
-> **The high-priority tier is empty and nothing is mid-review.** The reminder path
-> is **built but parked**; everything else outstanding is Low-priority. Read
-> `CLAUDE.md`, `roadmap.md`, `structure.md`, and `features.md` first — they are
-> current and authoritative. This file orients you and captures the
-> operational/workflow knowledge those docs don't.
+> and the table/exploded view (PR #20) — plus two Low-priority wins, the single-day
+> deliverable option (PR #23) and the campaigns-tab category filter (PR #24). CI/Deploy
+> actions were bumped to Node 24 (PR #17) and the deploy was hardened against a flaky
+> Supabase-CLI lookup (PR #21). **The high-priority tier is empty and nothing is
+> mid-review.** The reminder path is **built but parked**; everything else
+> outstanding is Low-priority. Read `CLAUDE.md`, `roadmap.md`, `structure.md`, and
+> `features.md` first — they are current and authoritative. This file orients you
+> and captures the operational/workflow knowledge those docs don't.
 
 ## 1. What this project is
 
@@ -65,6 +66,10 @@ route around it.
   the deliverable date inputs collapses Start/End into one Date box (writes the same
   value to both); initializes checked when `start == end`. UI-only in
   `DeliverableForm.tsx`.
+- **Campaigns-tab category filter** (PR #24) — the calendar's category chip filter
+  on the campaigns list, filtering `useCampaigns` server-side via `.in("category", …)`.
+  Its `campaignCategories` store state is **independent** of the calendar's
+  `activeCategories`; `CategoryFilter` is now presentational so both tabs reuse it.
 
 **Built but PARKED — not in production (`send-reminders`, PR #11 open):**
 - The scheduled reminder edge function is written, locally verified, review-
@@ -73,18 +78,15 @@ route around it.
 - Full spec, verification record, and the activation checklist: **`docs/archive/phase4-reminders.md`**.
 
 **Built, in review (not yet merged):**
-- **Category filter on the Campaigns tab** — branch `feat-campaign-category-filter`.
-  Adds the calendar's category chip filter to the campaigns list (server-side via
-  `.in("category", …)` in `useCampaigns`), with its own `campaignCategories` store
-  state **independent** of the calendar's `activeCategories`. `CategoryFilter` was
-  made presentational so both tabs reuse it. Client-only, no migration.
+- **None right now** — no feature work is awaiting merge. (Docs-only PRs may be in
+  flight; see §3.)
 
 **Queued, NOT built (high-priority backlog):**
 - **None — the high-priority tier is empty** (all shipped: PRs #15/#16/#19/#20).
 
 **Low priority / deferred:** campaign templates, the parked reminders, and stretch UI
-(week view, text wrapping, drawer). The campaign-tab category filter (in review) and
-the single-day deliverable option (PR #23, live) have graduated off this list. See
+(week view, text wrapping, drawer). The campaign-tab category filter (PR #24) and the
+single-day deliverable option (PR #23) have shipped and graduated off this list. See
 `features.md` → Low priority.
 
 ## 3. Open PRs / branch state
@@ -93,12 +95,13 @@ the single-day deliverable option (PR #23, live) have graduated off this list. S
   intentionally; **currently CONFLICTING** with `main` (its `features.md` /
   `structure.md` edits are superseded by later docs). That's expected — leave it;
   when un-parking, rebase onto `main` and drop the stale doc edits.
-- **`feat-campaign-category-filter`** — the campaigns-tab category filter, open for
-  review (client-only).
-- **Everything else is merged.** Recent: #19 (deliverable start/end spans + migration
-  `0005`), #20 (table/exploded view), #21 (deploy hardening — pinned Supabase CLI +
-  frontend gated on the DB job), #22 (docs: high-priority complete), #23 (single-day
-  deliverable option). `main` tip is `f2ba7ec` (the #23 merge); merged head branches
+- **Docs PRs in flight** — `docs-condense-features` (#25, condense the features
+  Implemented tier) and `docs-refresh-roadmap-structure-handoff` (this refresh).
+  Docs-only; no code.
+- **Everything else is merged.** Recent: #20 (table/exploded view), #21 (deploy
+  hardening — pinned Supabase CLI + frontend gated on the DB job), #22 (docs:
+  high-priority complete), #23 (single-day deliverable option), #24 (campaigns-tab
+  category filter). `main` tip is `bd72007` (the #24 merge); merged head branches
   are auto-deleted.
 
 ## 4. Data model & code map (detail in roadmap.md / structure.md)
@@ -213,10 +216,9 @@ the single-day deliverable option (PR #23, live) have graduated off this list. S
 ## 8. Likely next task
 
 **All high-priority features are shipped and live**, and the two cheapest
-Low-priority wins are done too — the single-day deliverable option (PR #23, live)
-and the campaigns-tab category filter (in review on `feat-campaign-category-filter`).
-So the next task is **owner's pick from what remains in the Low-priority tier**
-(`features.md` → Low priority):
+Low-priority wins are done and live too — the single-day deliverable option (PR #23)
+and the campaigns-tab category filter (PR #24). So the next task is **owner's pick
+from what remains in the Low-priority tier** (`features.md` → Low priority):
 - **Campaign templates** — needs a `00xx_templates.sql` (`templates` +
   `template_deliverables` with start/end day-offsets) + a "create from template"
   flow; the start/end date model it depends on is live. The largest remaining item.
