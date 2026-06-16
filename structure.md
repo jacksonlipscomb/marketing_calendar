@@ -21,6 +21,7 @@ marketing-calendar/
                                #   (activeCategories) and the campaigns list (campaignCategories)
       Breadcrumbs.tsx          # URL-derived trail (campaign id segment resolved to name)
       ConfirmDeleteButton.tsx  # destructive-action guard for cascade deletes
+      DemoDataPanel.tsx        # Campaigns-page panel: generate a demo year / purge it (is_seed)
       RangeFilter.tsx          # day/week/month/quarter/year/all, overlap semantics
       StatusFilter.tsx         # generic status pills (campaign + deliverable lists)
       ScheduleEmailDialog.tsx  # attach + schedule email via schedule-email (mounted in __root)
@@ -35,6 +36,7 @@ marketing-calendar/
       campaigns.ts             # campaign hooks + rangeBounds + overlap queries (list w/ range+status+category, calendar window)
       deliverables.ts          # deliverable hooks (incl. flat useDeliverablesTable) + monthGridRange + completionPercent
       csv.ts                   # dependency-free CSV builder + download (the table view's export)
+      demoData.ts              # synthetic demo-data fixtures + buildDemoData + generate/purge hooks (is_seed)
       templates.ts             # template hooks + create-from-template (planned — low priority)
       emailJobs.ts             # useScheduleEmail (invoke fn), useUpcomingSends
       uiStore.ts               # Zustand UI state (month, calendar + campaign-list category/range/status filters, schedule dialog)
@@ -59,6 +61,7 @@ marketing-calendar/
       0001..0003               # PoC migrations (already applied; never edit applied migrations)
       0004_reset_campaigns.sql # DESTRUCTIVE reset: drops PoC tables, creates campaign model + grants
       0005_deliverable_dates.sql # deliverable start/end spans (drops due_date) + bound triggers + clamp RPC
+      0006_seed_flag.sql       # additive is_seed flag on campaigns (demo-data marker) + partial index
       000N_templates.sql       # templates tables + grants (planned — low priority)
     functions/
       schedule-email/index.ts  # manual send path (re-pointed to deliverable_id)
