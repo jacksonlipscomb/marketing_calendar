@@ -20,12 +20,16 @@ export function ConfirmDeleteButton({
   description,
   onConfirm,
   pending,
+  disabled,
 }: {
   label: string
   title: string
   description: string
   onConfirm: () => Promise<void>
   pending: boolean
+  // Optional: gate the trigger (e.g. while a sibling action is in flight). The
+  // confirm/cancel buttons inside the dialog stay governed by `pending`.
+  disabled?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
@@ -42,7 +46,11 @@ export function ConfirmDeleteButton({
 
   return (
     <>
-      <Button variant="destructive" onClick={() => setOpen(true)}>
+      <Button
+        variant="destructive"
+        onClick={() => setOpen(true)}
+        disabled={disabled}
+      >
         {label}
       </Button>
       <Dialog open={open} onOpenChange={(o) => !o && setOpen(false)}>

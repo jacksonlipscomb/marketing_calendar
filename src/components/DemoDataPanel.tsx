@@ -29,7 +29,10 @@ export function DemoDataPanel() {
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-wrap items-center gap-3">
-        <Button onClick={() => generate.mutate()} disabled={generate.isPending}>
+        <Button
+          onClick={() => generate.mutate()}
+          disabled={generate.isPending || purge.isPending}
+        >
           {generate.isPending ? "Generating…" : "Generate demo data"}
         </Button>
         <ConfirmDeleteButton
@@ -37,7 +40,12 @@ export function DemoDataPanel() {
           title="Purge all demo data?"
           description="This permanently deletes every generated demo campaign and its deliverables. Campaigns you created yourself are not affected."
           pending={purge.isPending}
-          onConfirm={() => purge.mutateAsync()}
+          disabled={generate.isPending}
+          onConfirm={async () => {
+            await purge.mutateAsync()
+            // Drop the stale "Added N…" line — it no longer reflects the data.
+            generate.reset()
+          }}
         />
         {generate.error && (
           <p className="text-destructive text-sm" role="alert">
