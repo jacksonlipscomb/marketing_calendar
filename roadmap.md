@@ -28,6 +28,7 @@ In scope:
 - Derived campaign completion percentage.
 - A flat, sortable/filterable/CSV-exportable **table view** of every deliverable (`/table`).
 - Calendar campaign + deliverable span bars (shipped), reminder emails via pg_cron (built, parked), and campaign templates (deferred) — see `features.md` for current status and priority.
+- A one-click **synthetic demo-data** generator + purge for demos/testing — campaigns + deliverables only (no `email_jobs`), tagged by `campaigns.is_seed` (migration `0006`); see `features.md`.
 
 Out of scope:
 - Multi-tenant or per-user authorization; the team remains a single anonymous-authenticated unit.
@@ -141,6 +142,15 @@ create index email_jobs_status_sched_idx   on email_jobs (status, scheduled_for)
 > `deliverables_reminder_idx on deliverables (end_date) where reminded_at is null`.
 > The deliverables range query becomes an **overlap** query on `start_date`/`end_date`
 > (same inclusive rule as campaigns below).
+
+> **Update — migration `0006_seed_flag.sql` (synthetic demo-data marker).**
+> Additive and non-destructive: adds `is_seed boolean not null default false` to
+> `campaigns`, plus a partial index `campaigns_is_seed_idx on campaigns (is_seed)
+> where is_seed = true`. It tags rows created by the in-app "Demo data" generator
+> so they — and, via the `0004` FK cascade, their deliverables and email_jobs —
+> purge in one shot without touching hand-made data. No new grants (the `0004`
+> grants and the `campaigns_authenticated_all` policy already cover the column);
+> nothing but the generator (`src/lib/demoData.ts`) ever sets it true.
 
 ### Templates (schema deferred — not in the reset)
 

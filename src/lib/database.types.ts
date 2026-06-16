@@ -21,6 +21,7 @@ export type Database = {
           owners: string[]
           status: Database["public"]["Enums"]["campaign_status"]
           reminders_enabled: boolean
+          is_seed: boolean
           created_at: string
           updated_at: string
         }
@@ -35,6 +36,7 @@ export type Database = {
           owners?: string[]
           status?: Database["public"]["Enums"]["campaign_status"]
           reminders_enabled?: boolean
+          is_seed?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -49,6 +51,7 @@ export type Database = {
           owners?: string[]
           status?: Database["public"]["Enums"]["campaign_status"]
           reminders_enabled?: boolean
+          is_seed?: boolean
           created_at?: string
           updated_at?: string
         }

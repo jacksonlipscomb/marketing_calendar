@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { RangeFilter } from "@/components/RangeFilter"
 import { StatusFilter } from "@/components/StatusFilter"
 import { CategoryFilter } from "@/components/CategoryFilter"
+import { DemoDataPanel } from "@/components/DemoDataPanel"
 import { useCampaigns } from "@/lib/campaigns"
 import { useUiStore } from "@/lib/uiStore"
 import { CAMPAIGN_CATEGORIES, CAMPAIGN_STATUSES } from "@/lib/database.types"
@@ -95,6 +96,8 @@ export function CampaignsPage() {
           </Link>
         ))}
       </div>
+
+      <DemoDataPanel />
     </div>
   )
 }
