@@ -10,7 +10,7 @@ Ship **50–80% of the features well enough to tell 100% of the story**. The sto
 
 Three tiers — **Implemented** (live in production), **High priority** (queued to build next), **Low priority** (deferred / parked / stretch) — plus a transient **Built, in review** holding area for code-complete work awaiting merge (it moves up to Implemented on deploy). Items carry their build state. Earlier this file tracked a numbered phase sequence; that history lives in git and the merged PRs.
 
-**Current state (2026-06-15):** all high-priority work **and** the first two low-priority wins are **live in production** — nothing is in review. The product tells the full story today. What's left is the rest of the Low-priority tier (templates, parked reminders, stretch UI), none of which blocks the demo.
+**Current state (2026-06-15):** the implemented foundation, core UI, calendar, table view, and filters are all live in production, and nothing is in review. **One high-priority item is now queued: synthetic demo data (generate + purge)** — a one-click way to populate a full demo year (10–15 campaigns, ~25–30 deliverables) so the calendar can be exercised end to end, with a one-click purge that removes only the generated data. The rest of the backlog is Low priority (templates, parked reminders, stretch UI) and does not block the demo; the product tells the full story today.
 
 ## Implemented (live in production)
 
@@ -31,7 +31,29 @@ _None right now._
 
 ## High priority
 
-**Empty — all high-priority features are shipped and live.** Next work comes from the Low-priority tier below, or whatever the owner reprioritizes for the demo.
+### Synthetic demo data — generate a full year + one-click purge — *not built*
+
+One-click population of a realistic demo **year** so the calendar, table, and filters can be exercised end to end, plus a one-click **purge** that removes only the generated data and never touches real campaigns. For demos and manual testing.
+
+**Data shape (one "Generate" run):**
+
+- 10–15 campaigns across all four categories (recruiting, retention, regatta, fundraising) over a ~12-month window centered on today, with **overlapping** ranges so the calendar's lane-stacking and timeline concurrency show.
+- ~25–30 deliverables total (the "events"), ≈2 per campaign. Each span sits **inside** its parent campaign window (so the `0005` `deliverables_enforce_bounds` trigger passes); mix single-day and multi-day spans.
+- Varied statuses on both levels (campaign planned/in_progress/done; deliverable backlog/in_progress/complete) so the derived completion % and the status filters show range.
+- Realistic names/owners from a fixed, dependency-free fixtures table (no faker) in a new `src/lib/demoData.ts`: a small owners pool plus category-appropriate campaign names ("Fall Recruiting Drive", "Spring Regatta Season", "Year-End Giving Push", "Alumni Re-engagement") and deliverable titles ("Announcement email", "Newsletter photos", "Registration form", "Thank-you mailer").
+- **No `email_jobs` are generated** — generation stays entirely inside the client's RLS write surface (invariants 1–2).
+
+**Marker + storage (the "specific place"):** a new **additive, non-destructive** migration (next free number, `0006_seed_flag.sql`) adds `is_seed boolean not null default false` to `campaigns`, plus a partial index `campaigns_is_seed_idx on campaigns (is_seed) where is_seed = true`. **No new grants** — `campaigns` already grants insert/update/delete to `authenticated`. Deliverables need no flag: they belong to seed campaigns and cascade-purge with their parent. The column also requires updating the hand-written `src/lib/database.types.ts` (campaign Row/Insert) so `is_seed` is settable in the insert payload; the campaign create/edit forms ignore it (DB default `false`) — only `generateDemoData()` sets it `true`.
+
+**Generate path (client-side):** reuse `useCreateCampaign` / `useCreateDeliverable`; a thin `generateDemoData()` inserts campaigns with `is_seed: true`, then inserts each campaign's deliverables against the returned ids with spans clamped inside the campaign window. *Idempotent regenerate (agent decision):* Generate purges existing seed first, then inserts a fresh year, so repeated clicks don't accumulate; invalidate `["campaigns"]` / `["deliverables"]` after. *Partial-failure (agent decision):* the client purge-then-insert is **not transactional**, so a mid-run insert failure can leave a partial seed set — acceptable for a demo tool, surfaced by panel copy ("if generation fails, click Generate again to reset"). A single atomic purge+insert RPC is the upgrade path, not built now.
+
+**Purge path (client-side):** a `useDeleteSeedData` hook issues `.from("campaigns").delete().eq("is_seed", true)`; the existing FK cascade removes those campaigns' deliverables and any `email_jobs` — the same cascade the single-campaign delete already uses, so nothing new touches the `email_jobs` write surface (invariant 1 intact). Guard behind `ConfirmDeleteButton`, with copy that names what's removed — the generated demo campaigns **and their deliverables** — not just "demo data." Invalidate `["campaigns"]`, `["deliverables"]`, `["upcoming-sends"]`.
+
+**UI:** a compact "Demo data" panel (Generate + confirm-guarded Purge + a one-line caption) embedded on the Campaigns list page (`src/routes/campaigns.index.tsx`). *Placement note:* a panel on an existing page (rather than a dedicated route) is the owner's choice; hosting it on the Campaigns list is an agent recommendation — the management surface, keeping destructive controls off the headline calendar.
+
+**Acceptance:** Generate on an empty project yields 10–15 seed campaigns and ~25–30 deliverables visible across the calendar, table, and lists, every deliverable span inside its campaign window, statuses varied; Purge removes exactly the seed data (cascading to its deliverables); regenerating does not double the data; generation creates no `email_jobs` rows. Hand-made data is preserved: a non-seed campaign created before Generate survives **both** a Purge and a regenerate (only `is_seed = true` rows are touched).
+
+**Cut line:** static fixtures (no randomization library; per-run variation only from date arithmetic); a single fixed "year" template is enough for the demo.
 
 ## Low priority
 
