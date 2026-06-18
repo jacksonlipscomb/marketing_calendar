@@ -33,6 +33,10 @@ Shipped via merge to `main` — one line each; full detail, verification, and de
 
 The header (`src/routes/__root.tsx`) previously packed the brand ("Marketing Calendar" + the "NorCal youth rowing" tagline) and the three nav links (Calendar / Campaigns / Table) into one `flex items-center justify-between` row with no responsive prefixes, crowding at ~375px. Now the container stacks the brand over the nav below `sm` (`flex-col items-start gap-3`) and restores the existing single row at `sm` and up (`sm:flex-row sm:items-center sm:justify-between sm:gap-0`); the nav gains `flex-wrap` as a safety net. Tailwind-only — no new component, no menu state; the desktop layout is unchanged at 1280px. Static checks green; runtime-verified (Playwright 11/11: no mobile overflow, all three links reachable + tagline visible at 375px, brand/nav on one row at desktop). Moves to Implemented on merge.
 
+## High priority
+
+_None right now_ — empty once the responsive header above merges.
+
 ## Low priority
 
 Deferred, parked, or stretch — none blocks the demo story. (The campaign-tab category filter and the single-day deliverable option have shipped — see Implemented above.)
