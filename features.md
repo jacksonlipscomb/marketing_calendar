@@ -10,7 +10,7 @@ Ship **50–80% of the features well enough to tell 100% of the story**. The sto
 
 Three tiers — **Implemented** (live in production), **High priority** (queued to build next), **Low priority** (deferred / parked / stretch) — plus a transient **Built, in review** holding area for code-complete work awaiting merge (it moves up to Implemented on deploy). Items carry their build state. Earlier this file tracked a numbered phase sequence; that history lives in git and the merged PRs.
 
-**Current state (2026-06-17):** the foundation, core UI, calendar, table view, filters, and the **synthetic demo-data generator + purge** (#28) are all live in production; nothing is in review. **Two high-priority items are now queued:** a multi-select status filter on the campaigns list, and a responsive (mobile) header. A low-priority `NorCal`→`Norcal` rename rounds out the new backlog. The rest is Low priority (templates, parked reminders, stretch UI) and does not block the demo; the product tells the full story today.
+**Current state (2026-06-17):** the foundation, core UI, calendar, table view, filters, and the **synthetic demo-data generator + purge** (#28) are all live in production; nothing is in review. **Two high-priority items are now queued:** a multi-select status filter on the campaigns list, and a responsive (mobile) header. A low-priority `NorCal`→`Norcal` rename rounds out the new backlog. The rest is Low priority (the rename, templates, parked reminders, stretch UI) and does not block the demo; the product tells the full story today.
 
 ## Implemented (live in production)
 
