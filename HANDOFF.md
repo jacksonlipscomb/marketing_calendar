@@ -9,9 +9,8 @@
 > deliverable option (PR #23) and the campaigns-tab category filter (PR #24). CI/Deploy
 > actions run on Node 24 (PR #17) and the deploy is hardened against a flaky
 > Supabase-CLI lookup (PR #21). The **multi-select status filter on the campaigns
-> list** (PR #30) is merged and live. The **responsive (mobile) header** is **built
-> and in review** (PR not yet merged); with it the **high-priority tier is empty**.
-> A low-priority `NorCal`→`Norcal` rename is queued.
+> list** (PR #30) and the **responsive (mobile) header** (PR #32) are merged and
+> live; with them the **high-priority tier is empty** and nothing is mid-review.
 > The reminder path is **built but parked**; everything else outstanding is Low-priority.
 > Read `CLAUDE.md`, `roadmap.md`, `structure.md`, and `features.md` first — they are
 > current and authoritative. This file orients you and captures the operational/workflow
@@ -19,7 +18,7 @@
 
 ## 1. What this project is
 
-A marketing calendar for a youth rowing club (NorCal), organized around
+A marketing calendar for a youth rowing club (Norcal), organized around
 **campaigns** (multi-week efforts with a goal, segmentation, date range, and
 owners) that break into **deliverables** (dated, owned, statused pieces of work).
 Four categories: recruiting, retention, regatta, fundraising.
@@ -88,6 +87,11 @@ route around it.
   plus an empty-set short-circuit (`statuses`/`categories` length 0 → `[]`, no reliance
   on `.in(col, [])`). Scoped to `campaigns.index.tsx` — the deliverable list and table
   status chips stay single-select. Client-only, no migration.
+- **Responsive header for mobile** (PR #32) — `src/routes/__root.tsx` stacks the
+  brand over the nav below `sm` (`flex-col items-start gap-3`) and restores the
+  single row at `sm`+ (`sm:flex-row sm:items-center sm:justify-between sm:gap-0`),
+  with `flex-wrap` on `<nav>`. Tailwind-only, no new component/state; desktop
+  unchanged at 1280px.
 
 **Built but PARKED — not in production (`send-reminders`, PR #11 open):**
 - The scheduled reminder edge function is written, locally verified, review-
@@ -96,22 +100,16 @@ route around it.
 - Full spec, verification record, and the activation checklist: **`docs/archive/phase4-reminders.md`**.
 
 **Built, in review (not yet merged):**
-- **Responsive header for mobile** — `src/routes/__root.tsx` previously packed the
-  brand + three nav links into one `flex justify-between` row with no responsive
-  prefixes (crowding at ~375px). Now the container stacks the brand over the nav
-  below `sm` (`flex-col items-start gap-3`) and restores the single row at `sm`+
-  (`sm:flex-row sm:items-center sm:justify-between sm:gap-0`); `<nav>` gains
-  `flex-wrap`. Tailwind-only, no new component/state; desktop unchanged at 1280px.
-  Static green + Playwright 11/11 (no mobile overflow, all three links reachable,
-  tagline visible; brand/nav on one row at desktop).
+- **None right now** — no feature work is awaiting merge. (A chore PR may be in
+  flight bundling the brand-casing rename; see §3.)
 
 **Queued, NOT built (high-priority backlog):**
-- **None** — the high-priority tier is empty after the responsive header.
+- **None** — the high-priority tier is empty.
 
-**Low priority / deferred:** the `NorCal`→`Norcal` rename (a chore), campaign templates,
-the parked reminders, and stretch UI (week view, text wrapping, drawer). The campaign-tab
-category filter (PR #24) and the single-day deliverable option (PR #23) have shipped and
-graduated off this list. See `features.md` → Low priority.
+**Low priority / deferred:** campaign templates, the parked reminders, and stretch UI
+(week view, text wrapping, drawer). The campaigns-tab category filter (PR #24), the
+single-day deliverable option (PR #23), and the brand-casing rename (a chore) have
+shipped and graduated off this list. See `features.md` → Low priority.
 
 ## 3. Open PRs / branch state
 
@@ -119,14 +117,15 @@ graduated off this list. See `features.md` → Low priority.
   intentionally; **currently CONFLICTING** with `main` (its `features.md` /
   `structure.md` edits are superseded by later docs). That's expected — leave it;
   when un-parking, rebase onto `main` and drop the stale doc edits.
-- **PR for the responsive mobile header** — `feat-responsive-header`, open and
-  awaiting the owner's merge. Carries the one-file `__root.tsx` change **and** this
-  docs refresh (`features.md` + `HANDOFF.md`); on merge, a separate docs-only PR
-  graduates it to Implemented (the #30 → #31 two-step).
+- **PR for the brand-casing rename** — `chore-norcal-rename`, open and awaiting the
+  owner's merge. Three brand string edits (header tagline, README title, §1 here)
+  **plus** docs housekeeping: it also graduates the responsive header (#32) to
+  Implemented and removes the now-shipped rename backlog item. Because it lands the
+  docs in their final state, no follow-up graduation PR is needed.
 - **Everything else is merged.** Recent: **#28 (synthetic demo data)**, #29 (docs:
-  backlog + HANDOFF refresh), **#30 (multi-select status filter — the feature)**, and
-  #31 (docs: graduate #30 to Implemented). `main` tip is `e202800` (the #31 merge).
-  Merged head branches are auto-deleted.
+  backlog + HANDOFF refresh), **#30 (multi-select status filter)**, #31 (docs:
+  graduate #30), and **#32 (responsive mobile header — the feature)**. `main` tip is
+  `85c3849` (the #32 merge). Merged head branches are auto-deleted.
 
 ## 4. Data model & code map (detail in roadmap.md / structure.md)
 
@@ -243,10 +242,8 @@ graduated off this list. See `features.md` → Low priority.
 ## 8. Likely next task
 
 **The high-priority tier is empty** — the multi-select status filter (PR #30) and the
-responsive mobile header (PR `feat-responsive-header`, in review) are the last two; see
-§2/§3. Next work comes from the Low-priority tier (`features.md` → Low priority):
-- **`NorCal`→`Norcal` rename** — a quick chore (three tracked occurrences; re-grep when
-  picking it up). Do **not** rename the local `NorCal_Project` working-dir path.
+responsive mobile header (PR #32) were the last two; see §2/§3. Next work comes from
+the Low-priority tier (`features.md` → Low priority):
 - **Campaign templates** — needs a `00xx_templates.sql` (`templates` +
   `template_deliverables` with start/end day-offsets) + a "create from template"
   flow; the start/end date model it depends on is live. The largest remaining item.
