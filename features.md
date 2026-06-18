@@ -10,7 +10,7 @@ Ship **50–80% of the features well enough to tell 100% of the story**. The sto
 
 Three tiers — **Implemented** (live in production), **High priority** (queued to build next), **Low priority** (deferred / parked / stretch) — plus a transient **Built, in review** holding area for code-complete work awaiting merge (it moves up to Implemented on deploy). Items carry their build state. Earlier this file tracked a numbered phase sequence; that history lives in git and the merged PRs.
 
-**Current state (2026-06-17):** the foundation, core UI, calendar, table view, filters, the **synthetic demo-data generator + purge** (#28), and the **multi-select status filter on the campaigns list** (#30) are all live in production; nothing is in review. **One high-priority item remains queued:** a responsive (mobile) header. A low-priority `NorCal`→`Norcal` rename rounds out the new backlog. The rest is Low priority (the rename, templates, parked reminders, stretch UI) and does not block the demo; the product tells the full story today.
+**Current state (2026-06-18):** the foundation, core UI, calendar, table view, filters, the **synthetic demo-data generator + purge** (#28), and the **multi-select status filter on the campaigns list** (#30) are all live in production. The **responsive (mobile) header** is **built and in review** (not yet merged). With it, the **High priority tier is empty** — only Low priority remains (the `NorCal`→`Norcal` rename, templates, parked reminders, stretch UI), and none blocks the demo; the product tells the full story today.
 
 ## Implemented (live in production)
 
@@ -29,17 +29,9 @@ Shipped via merge to `main` — one line each; full detail, verification, and de
 
 ## Built, in review (not yet merged)
 
-_None right now._
+### Responsive header for mobile — *built, in review*
 
-## High priority
-
-### Responsive header for mobile — *not built*
-
-At the mobile breakpoint the header is crowded: `src/routes/__root.tsx` puts the brand ("Marketing Calendar" + the "NorCal youth rowing" tagline) and the three nav links (Calendar / Campaigns / Table) in one `flex … justify-between` row with **no responsive prefixes**.
-
-- **Approach:** optimize with Tailwind responsive design (the app uses `sm:`/`md:` only in a few `ui/` primitives today — no header treatment, and no menu/hamburger primitive exists yet). On pickup, options include condensing or hiding the tagline at narrow widths, letting the nav wrap / tightening spacing, or introducing a compact menu — keep all three destinations reachable and leave the desktop layout unchanged.
-
-**Acceptance:** at ~375px the header doesn't overflow or crowd and every nav link is reachable; the desktop layout is unchanged at ≥`md`.
+The header (`src/routes/__root.tsx`) previously packed the brand ("Marketing Calendar" + the "NorCal youth rowing" tagline) and the three nav links (Calendar / Campaigns / Table) into one `flex items-center justify-between` row with no responsive prefixes, crowding at ~375px. Now the container stacks the brand over the nav below `sm` (`flex-col items-start gap-3`) and restores the existing single row at `sm` and up (`sm:flex-row sm:items-center sm:justify-between sm:gap-0`); the nav gains `flex-wrap` as a safety net. Tailwind-only — no new component, no menu state; the desktop layout is unchanged at 1280px. Static checks green; runtime-verified (Playwright 11/11: no mobile overflow, all three links reachable + tagline visible at 375px, brand/nav on one row at desktop). Moves to Implemented on merge.
 
 ## Low priority
 
