@@ -14,7 +14,7 @@ export function RootLayout() {
           <div>
             <h1 className="text-lg font-semibold">Marketing Calendar</h1>
             <p className="text-muted-foreground text-xs">
-              NorCal youth rowing
+              Norcal youth rowing
             </p>
           </div>
           <nav className="flex flex-wrap gap-4 text-sm">

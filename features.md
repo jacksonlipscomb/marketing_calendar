@@ -10,7 +10,7 @@ Ship **50–80% of the features well enough to tell 100% of the story**. The sto
 
 Three tiers — **Implemented** (live in production), **High priority** (queued to build next), **Low priority** (deferred / parked / stretch) — plus a transient **Built, in review** holding area for code-complete work awaiting merge (it moves up to Implemented on deploy). Items carry their build state. Earlier this file tracked a numbered phase sequence; that history lives in git and the merged PRs.
 
-**Current state (2026-06-18):** the foundation, core UI, calendar, table view, filters, the **synthetic demo-data generator + purge** (#28), and the **multi-select status filter on the campaigns list** (#30) are all live in production. The **responsive (mobile) header** is **built and in review** (not yet merged). With it, the **High priority tier is empty** — only Low priority remains (the `NorCal`→`Norcal` rename, templates, parked reminders, stretch UI), and none blocks the demo; the product tells the full story today.
+**Current state (2026-06-18):** the foundation, core UI, calendar, table view, filters, the **synthetic demo-data generator + purge** (#28), the **multi-select status filter on the campaigns list** (#30), and the **responsive (mobile) header** (#32) are all live in production; nothing is in review. The **High priority tier is empty** — only Low priority remains (templates, parked reminders, stretch UI), and none blocks the demo; the product tells the full story today.
 
 ## Implemented (live in production)
 
@@ -26,26 +26,19 @@ Shipped via merge to `main` — one line each; full detail, verification, and de
 - **Campaigns-tab category filter** (#24) — the calendar's category chips on the campaigns list, with state independent of the calendar's; filters the query server-side.
 - **Synthetic demo data** (#28) — a "Demo data" panel on the Campaigns page: **Generate** fills a demo year (12 campaigns across all four categories, 28 deliverables, overlapping spans) tagged `campaigns.is_seed`; **Purge** removes only the seed via the campaign delete cascade. Migration `0006_seed_flag.sql` (additive `is_seed` flag + partial index); generation writes campaigns/deliverables only — no `email_jobs`. Idempotent regenerate.
 - **Multi-select status filter on the campaigns list** (#30) — the list's Status filter is multi-select, mirroring the campaigns-tab category multi-select (#24): uiStore `campaignStatuses[]` + `toggleCampaignStatus`, a presentational `StatusMultiFilter`, and `useCampaigns` `.in("status", …)` folded into the queryKey; an empty status *or* category set short-circuits to no rows. List-scoped — the deliverable list and table chips stay single-select.
+- **Responsive header for mobile** (#32) — the header (`src/routes/__root.tsx`) stacks the brand over the nav below `sm` (`flex-col items-start gap-3`) and restores the single row at `sm`+ (`sm:flex-row sm:items-center sm:justify-between sm:gap-0`), with `flex-wrap` on the nav. Tailwind-only; desktop unchanged at 1280px.
 
 ## Built, in review (not yet merged)
 
-### Responsive header for mobile — *built, in review*
-
-The header (`src/routes/__root.tsx`) previously packed the brand ("Marketing Calendar" + the "NorCal youth rowing" tagline) and the three nav links (Calendar / Campaigns / Table) into one `flex items-center justify-between` row with no responsive prefixes, crowding at ~375px. Now the container stacks the brand over the nav below `sm` (`flex-col items-start gap-3`) and restores the existing single row at `sm` and up (`sm:flex-row sm:items-center sm:justify-between sm:gap-0`); the nav gains `flex-wrap` as a safety net. Tailwind-only — no new component, no menu state; the desktop layout is unchanged at 1280px. Static checks green; runtime-verified (Playwright 11/11: no mobile overflow, all three links reachable + tagline visible at 375px, brand/nav on one row at desktop). Moves to Implemented on merge.
+_None right now._
 
 ## High priority
 
-_None right now_ — empty once the responsive header above merges.
+_None right now._
 
 ## Low priority
 
 Deferred, parked, or stretch — none blocks the demo story. (The campaign-tab category filter and the single-day deliverable option have shipped — see Implemented above.)
-
-### `NorCal` → `Norcal` global rename — *not built* (chore)
-
-Replace the **club-name/brand** `NorCal` with `Norcal` in tracked files. Locate the brand usages by grep at implementation time (`grep -rn 'NorCal' --exclude-dir={node_modules,.git}`) rather than trusting fixed line numbers — currently three real usages: the header tagline in `src/routes/__root.tsx` (the only UI-visible one), the title in `README.md`, and the project description in `HANDOFF.md` §1. (The grep will also surface this backlog item's own `NorCal`→`Norcal` references in `features.md`/`HANDOFF.md` — those describe the rename, not the brand, and disappear when the item ships, so leave them.) No existing lowercase variants. **Out of scope:** the local working-directory path `NorCal_Project` (not tracked — do not rename).
-
-**Acceptance:** every club-name/brand `NorCal` is now `Norcal` (header reads "Norcal youth rowing", README title updated); the only `NorCal` strings left are this item's own rename references; lint/build stay green.
 
 ### Campaign templates — *not built*
 

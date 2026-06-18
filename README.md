@@ -1,4 +1,4 @@
-# Marketing Calendar — NorCal Youth Rowing (PoC)
+# Marketing Calendar — Norcal Youth Rowing (PoC)
 
 A marketing calendar for a youth rowing club, organizing events and their emails
 around four categories: **recruiting**, **retention**, **regatta**, and
