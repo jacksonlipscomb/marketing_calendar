@@ -34,7 +34,7 @@ _None right now._
 
 ## High priority
 
-_None right now_ — empty once the responsive header above merges.
+_None right now._
 
 ## Low priority
 
