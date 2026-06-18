@@ -1,17 +1,20 @@
 # Handoff — Marketing Calendar (campaign/deliverable build)
 
-> **Current as of 2026-06-15.** The original events-based PoC was replaced by a
-> campaign/deliverable rewrite. **All high-priority features are shipped and live
-> in production:** foundation, core UI, calendar bars, deliverable deep linking
-> (PR #15), navigation affordances (PR #16), deliverable start/end spans (PR #19),
-> and the table/exploded view (PR #20) — plus two Low-priority wins, the single-day
+> **Current as of 2026-06-17.** The original events-based PoC was replaced by a
+> campaign/deliverable rewrite. **Everything through the synthetic demo-data
+> generator is shipped and live in production:** foundation, core UI, calendar bars,
+> deliverable deep linking (PR #15), navigation affordances (PR #16), deliverable
+> start/end spans (PR #19), the table/exploded view (PR #20), and — newest — the
+> **demo-data generator + purge (PR #28)** — plus two Low-priority wins, the single-day
 > deliverable option (PR #23) and the campaigns-tab category filter (PR #24). CI/Deploy
-> actions were bumped to Node 24 (PR #17) and the deploy was hardened against a flaky
-> Supabase-CLI lookup (PR #21). **The high-priority tier is empty and nothing is
-> mid-review.** The reminder path is **built but parked**; everything else
-> outstanding is Low-priority. Read `CLAUDE.md`, `roadmap.md`, `structure.md`, and
-> `features.md` first — they are current and authoritative. This file orients you
-> and captures the operational/workflow knowledge those docs don't.
+> actions run on Node 24 (PR #17) and the deploy is hardened against a flaky
+> Supabase-CLI lookup (PR #21). **Two high-priority items are now queued (not built):**
+> a multi-select status filter on the campaigns list, and a responsive (mobile) header;
+> a low-priority `NorCal`→`Norcal` rename is also queued. **Nothing is mid-review.**
+> The reminder path is **built but parked**; everything else outstanding is Low-priority.
+> Read `CLAUDE.md`, `roadmap.md`, `structure.md`, and `features.md` first — they are
+> current and authoritative. This file orients you and captures the operational/workflow
+> knowledge those docs don't.
 
 ## 1. What this project is
 
@@ -70,6 +73,13 @@ route around it.
   on the campaigns list, filtering `useCampaigns` server-side via `.in("category", …)`.
   Its `campaignCategories` store state is **independent** of the calendar's
   `activeCategories`; `CategoryFilter` is now presentational so both tabs reuse it.
+- **Synthetic demo data** (PR #28) — a "Demo data" panel on the Campaigns page:
+  **Generate** bulk-inserts a demo year (12 campaigns across all four categories, 28
+  deliverables, overlapping spans) tagged `campaigns.is_seed`; **Purge** removes only
+  the seed via the campaign delete cascade. Migration `0006_seed_flag.sql` (additive
+  `is_seed` flag + partial index); generation writes campaigns/deliverables only —
+  **never `email_jobs`** (invariant 1 intact). Idempotent regenerate. Verified on the
+  local stack (Playwright 16/16); deploy run green.
 
 **Built but PARKED — not in production (`send-reminders`, PR #11 open):**
 - The scheduled reminder edge function is written, locally verified, review-
@@ -78,16 +88,21 @@ route around it.
 - Full spec, verification record, and the activation checklist: **`docs/archive/phase4-reminders.md`**.
 
 **Built, in review (not yet merged):**
-- **None right now** — no feature work is awaiting merge. (Docs-only PRs may be in
-  flight; see §3.)
+- **None right now** — no feature work is awaiting merge. (A docs-only PR carrying this
+  HANDOFF refresh + the new `features.md` backlog entries may be in flight; see §3.)
 
 **Queued, NOT built (high-priority backlog):**
-- **None — the high-priority tier is empty** (all shipped: PRs #15/#16/#19/#20).
+- **Multi-select status filter on the campaigns list** — the list's Status filter is
+  single-select today; make it multi-select by mirroring the campaigns-tab category
+  multi-select (PR #24): uiStore `campaignStatuses[]` + `toggleCampaignStatus`, a
+  presentational multi-toggle like `CategoryFilter`, and `useCampaigns` `.in("status", …)`.
+- **Responsive header for mobile** — `src/routes/__root.tsx` crowds the brand + three
+  nav links into one row with no responsive prefixes; optimize for narrow widths.
 
-**Low priority / deferred:** campaign templates, the parked reminders, and stretch UI
-(week view, text wrapping, drawer). The campaign-tab category filter (PR #24) and the
-single-day deliverable option (PR #23) have shipped and graduated off this list. See
-`features.md` → Low priority.
+**Low priority / deferred:** the `NorCal`→`Norcal` rename (a chore), campaign templates,
+the parked reminders, and stretch UI (week view, text wrapping, drawer). The campaign-tab
+category filter (PR #24) and the single-day deliverable option (PR #23) have shipped and
+graduated off this list. See `features.md` → Low priority.
 
 ## 3. Open PRs / branch state
 
@@ -95,14 +110,13 @@ single-day deliverable option (PR #23) have shipped and graduated off this list.
   intentionally; **currently CONFLICTING** with `main` (its `features.md` /
   `structure.md` edits are superseded by later docs). That's expected — leave it;
   when un-parking, rebase onto `main` and drop the stale doc edits.
-- **Docs PRs in flight** — `docs-condense-features` (#25, condense the features
-  Implemented tier) and `docs-refresh-roadmap-structure-handoff` (this refresh).
-  Docs-only; no code.
-- **Everything else is merged.** Recent: #20 (table/exploded view), #21 (deploy
-  hardening — pinned Supabase CLI + frontend gated on the DB job), #22 (docs:
-  high-priority complete), #23 (single-day deliverable option), #24 (campaigns-tab
-  category filter). `main` tip is `bd72007` (the #24 merge); merged head branches
-  are auto-deleted.
+- **A docs-only PR may be in flight** carrying this HANDOFF refresh + the three new
+  `features.md` backlog entries (`docs-backlog-handoff-refresh`). No code.
+- **Everything else is merged.** Recent: #24 (campaigns-tab category filter), #25/#26
+  (docs: condense features + refresh roadmap/structure/HANDOFF), #27 (docs: queue the
+  demo-data spec), and **#28 (synthetic demo data — the feature)**. `main` tip is
+  `2a91c46` (the #28 merge); its deploy run is green. Merged head branches are
+  auto-deleted.
 
 ## 4. Data model & code map (detail in roadmap.md / structure.md)
 
@@ -111,15 +125,18 @@ single-day deliverable option (PR #23) have shipped and graduated off this list.
   (planned/in_progress/done), `deliverable_status` (backlog/in_progress/complete),
   `email_status` (draft/scheduled/sent/failed).
 - **Migrations:** `0001`–`0003` (PoC, applied long ago), `0004_reset_campaigns.sql`
-  (the live reset). Never edit an applied migration; new schema = new file.
+  (the live reset), `0005_deliverable_dates.sql` (start/end spans + bound triggers +
+  clamp RPC), `0006_seed_flag.sql` (additive `campaigns.is_seed` flag + partial index
+  for the demo-data purge). Never edit an applied migration; new schema = new file.
 - **Edge functions:** `supabase/functions/schedule-email/` (live),
   `supabase/functions/send-reminders/` (parked, exists only in PR #11).
 - **Frontend (`src/`):** hooks in `lib/` (`campaigns.ts`, `deliverables.ts`,
   `emailJobs.ts`, `schemas.ts`, `uiStore.ts`, `supabase.ts`, `auth.ts`, `env.ts`,
+  `csv.ts`, `demoData.ts` [demo-data fixtures + `buildDemoData` + generate/purge hooks],
   hand-written `database.types.ts`); components incl. `CalendarMonth`,
   `CampaignForm`, `DeliverableForm`, `OwnersInput`, `RangeFilter`, `StatusFilter`,
-  `CategoryFilter`, `Breadcrumbs`, `ConfirmDeleteButton`, `ScheduleEmailDialog`,
-  `UpcomingSends`; code-based routes in `router.tsx` + `routes/`.
+  `CategoryFilter`, `Breadcrumbs`, `ConfirmDeleteButton`, `DemoDataPanel`,
+  `ScheduleEmailDialog`, `UpcomingSends`; code-based routes in `router.tsx` + `routes/`.
 - **Stack:** Vite + React + TS; **Tailwind v4** (no config; `@tailwindcss/vite` +
   `@import "tailwindcss"` in `index.css`); **shadcn** in `components/ui/`;
   TanStack **Router** (code-based) + **Query**; **Zustand**; **react-hook-form +
@@ -215,10 +232,19 @@ single-day deliverable option (PR #23) have shipped and graduated off this list.
 
 ## 8. Likely next task
 
-**All high-priority features are shipped and live**, and the two cheapest
-Low-priority wins are done and live too — the single-day deliverable option (PR #23)
-and the campaigns-tab category filter (PR #24). So the next task is **owner's pick
-from what remains in the Low-priority tier** (`features.md` → Low priority):
+**Two high-priority items are queued** (`features.md` → High priority) — start here:
+- **Multi-select status filter on the campaigns list** — the Status filter is
+  single-select today; make it multi-select by mirroring the campaigns-tab category
+  multi-select (PR #24): uiStore `campaignStatuses[]` + `toggleCampaignStatus`, a
+  presentational multi-toggle like `CategoryFilter`, and `useCampaigns` `.in("status", …)`
+  folded into the queryKey. Scoped to `campaigns.index.tsx`.
+- **Responsive header for mobile** — `src/routes/__root.tsx` crowds the brand + three
+  nav links at narrow widths with no responsive prefixes; optimize with Tailwind
+  `sm:`/`md:` (no menu/hamburger primitive exists yet).
+
+Then the Low-priority tier (`features.md` → Low priority):
+- **`NorCal`→`Norcal` rename** — a quick chore (three tracked occurrences; re-grep when
+  picking it up). Do **not** rename the local `NorCal_Project` working-dir path.
 - **Campaign templates** — needs a `00xx_templates.sql` (`templates` +
   `template_deliverables` with start/end day-offsets) + a "create from template"
   flow; the start/end date model it depends on is live. The largest remaining item.
