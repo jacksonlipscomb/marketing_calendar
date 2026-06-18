@@ -4,7 +4,7 @@ import { format } from "date-fns"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { RangeFilter } from "@/components/RangeFilter"
-import { StatusFilter } from "@/components/StatusFilter"
+import { StatusMultiFilter } from "@/components/StatusMultiFilter"
 import { CategoryFilter } from "@/components/CategoryFilter"
 import { DemoDataPanel } from "@/components/DemoDataPanel"
 import { useCampaigns } from "@/lib/campaigns"
@@ -18,8 +18,8 @@ export function CampaignsPage() {
   const {
     campaignRange,
     setCampaignRange,
-    campaignStatus,
-    setCampaignStatus,
+    campaignStatuses,
+    toggleCampaignStatus,
     campaignCategories,
     toggleCampaignCategory,
   } = useUiStore()
@@ -27,11 +27,11 @@ export function CampaignsPage() {
     data: campaigns = [],
     isLoading,
     error,
-  } = useCampaigns(campaignRange, campaignStatus, campaignCategories)
+  } = useCampaigns(campaignRange, campaignStatuses, campaignCategories)
 
   const filtered =
     campaignRange !== "all" ||
-    campaignStatus !== "all" ||
+    campaignStatuses.length < CAMPAIGN_STATUSES.length ||
     campaignCategories.length < CAMPAIGN_CATEGORIES.length
 
   return (
@@ -44,10 +44,10 @@ export function CampaignsPage() {
       </div>
 
       <RangeFilter value={campaignRange} onChange={setCampaignRange} />
-      <StatusFilter
+      <StatusMultiFilter
         options={CAMPAIGN_STATUSES}
-        value={campaignStatus}
-        onChange={setCampaignStatus}
+        value={campaignStatuses}
+        onToggle={toggleCampaignStatus}
       />
       <CategoryFilter
         value={campaignCategories}

@@ -13,7 +13,7 @@ import {
   startOfYear,
 } from "date-fns"
 import { supabase } from "./supabase"
-import { CAMPAIGN_CATEGORIES } from "./database.types"
+import { CAMPAIGN_CATEGORIES, CAMPAIGN_STATUSES } from "./database.types"
 import type {
   CampaignCategory,
   CampaignInsert,
@@ -34,8 +34,6 @@ export const RANGE_KEYS = [
   "all",
 ] as const
 export type RangeKey = (typeof RANGE_KEYS)[number]
-
-export type CampaignStatusFilter = CampaignStatus | "all"
 
 // Bounds of "the current <range>" anchored at `today`; null means unbounded.
 // "Week" is Sunday-start (date-fns default) on purpose, matching the calendar
@@ -68,13 +66,17 @@ export function rangeBounds(
 // "fix" this to containment — that silently drops straddling campaigns.
 export function useCampaigns(
   range: RangeKey = "all",
-  status: CampaignStatusFilter = "all",
+  statuses: CampaignStatus[] = [...CAMPAIGN_STATUSES],
   categories: CampaignCategory[] = [...CAMPAIGN_CATEGORIES],
 ) {
   const bounds = rangeBounds(range)
-  // All categories selected = no category constraint; otherwise filter to the
-  // chosen set (empty = none selected = no rows, matching the calendar). The key
-  // segment is stable/order-independent so toggling refetches correctly.
+  // All selected = no constraint; otherwise filter to the chosen set (empty =
+  // none selected = no rows). Each key segment is stable/order-independent so
+  // toggling refetches correctly, with "none" distinguishing the empty set.
+  const allStatuses = statuses.length === CAMPAIGN_STATUSES.length
+  const statusKey = allStatuses
+    ? "all"
+    : [...statuses].sort().join("|") || "none"
   const allCategories = categories.length === CAMPAIGN_CATEGORIES.length
   const categoryKey = allCategories
     ? "all"
@@ -84,18 +86,21 @@ export function useCampaigns(
       "campaigns",
       "list",
       bounds ? `${fmt(bounds.start)}..${fmt(bounds.end)}` : "all",
-      status,
+      statusKey,
       categoryKey,
     ],
     queryFn: async (): Promise<CampaignRow[]> => {
+      // An empty selection means nothing is selected → no rows. Return early
+      // rather than rely on PostgREST serializing `.in(col, [])` to no rows.
+      if (statuses.length === 0 || categories.length === 0) return []
       let query = supabase.from("campaigns").select("*")
       if (bounds) {
         query = query
           .lte("start_date", fmt(bounds.end))
           .gte("end_date", fmt(bounds.start))
       }
-      if (status !== "all") {
-        query = query.eq("status", status)
+      if (!allStatuses) {
+        query = query.in("status", statuses)
       }
       if (!allCategories) {
         query = query.in("category", categories)
