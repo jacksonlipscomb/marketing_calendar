@@ -10,14 +10,14 @@ export function RootLayout() {
   return (
     <div className="min-h-svh bg-background text-foreground">
       <header className="border-b">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+        <div className="mx-auto flex max-w-6xl flex-col items-start gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-0">
           <div>
             <h1 className="text-lg font-semibold">Marketing Calendar</h1>
             <p className="text-muted-foreground text-xs">
               NorCal youth rowing
             </p>
           </div>
-          <nav className="flex gap-4 text-sm">
+          <nav className="flex flex-wrap gap-4 text-sm">
             <Link
               to="/"
               className="hover:underline"
