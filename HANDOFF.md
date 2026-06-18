@@ -8,9 +8,10 @@
 > **demo-data generator + purge (PR #28)** — plus two Low-priority wins, the single-day
 > deliverable option (PR #23) and the campaigns-tab category filter (PR #24). CI/Deploy
 > actions run on Node 24 (PR #17) and the deploy is hardened against a flaky
-> Supabase-CLI lookup (PR #21). **Two high-priority items are now queued (not built):**
-> a multi-select status filter on the campaigns list, and a responsive (mobile) header;
-> a low-priority `NorCal`→`Norcal` rename is also queued. **Nothing is mid-review.**
+> Supabase-CLI lookup (PR #21). The **multi-select status filter on the campaigns
+> list** is **built and in review** (PR not yet merged). **One high-priority item
+> remains queued (not built):** a responsive (mobile) header; a low-priority
+> `NorCal`→`Norcal` rename is also queued.
 > The reminder path is **built but parked**; everything else outstanding is Low-priority.
 > Read `CLAUDE.md`, `roadmap.md`, `structure.md`, and `features.md` first — they are
 > current and authoritative. This file orients you and captures the operational/workflow
@@ -88,14 +89,15 @@ route around it.
 - Full spec, verification record, and the activation checklist: **`docs/archive/phase4-reminders.md`**.
 
 **Built, in review (not yet merged):**
-- **None right now** — no feature work is awaiting merge. (A docs-only PR carrying this
-  HANDOFF refresh + the new `features.md` backlog entries may be in flight; see §3.)
+- **Multi-select status filter on the campaigns list** — the list's Status filter is now
+  multi-select, mirroring the campaigns-tab category multi-select (PR #24): uiStore
+  `campaignStatuses[]` + `toggleCampaignStatus`, a new presentational `StatusMultiFilter`,
+  and `useCampaigns` `.in("status", …)` folded into the queryKey, plus an empty-set
+  short-circuit (`statuses`/`categories` length 0 → `[]`, no reliance on `.in(col, [])`).
+  Client-only, no migration; static green + local-stack Playwright 10/10. Scoped to
+  `campaigns.index.tsx` — the deliverable list and table status chips stay single-select.
 
 **Queued, NOT built (high-priority backlog):**
-- **Multi-select status filter on the campaigns list** — the list's Status filter is
-  single-select today; make it multi-select by mirroring the campaigns-tab category
-  multi-select (PR #24): uiStore `campaignStatuses[]` + `toggleCampaignStatus`, a
-  presentational multi-toggle like `CategoryFilter`, and `useCampaigns` `.in("status", …)`.
 - **Responsive header for mobile** — `src/routes/__root.tsx` crowds the brand + three
   nav links into one row with no responsive prefixes; optimize for narrow widths.
 
@@ -110,12 +112,14 @@ graduated off this list. See `features.md` → Low priority.
   intentionally; **currently CONFLICTING** with `main` (its `features.md` /
   `structure.md` edits are superseded by later docs). That's expected — leave it;
   when un-parking, rebase onto `main` and drop the stale doc edits.
-- **A docs-only PR may be in flight** carrying this HANDOFF refresh + the three new
-  `features.md` backlog entries (`docs-backlog-handoff-refresh`). No code.
+- **PR for the multi-select status filter** — `feat-campaign-status-multiselect`,
+  open and awaiting the owner's merge. Carries the feature (uiStore +
+  `StatusMultiFilter` + `useCampaigns`) **and** this docs refresh (`features.md` +
+  `HANDOFF.md`). On merge, move the feature to Implemented in `features.md`.
 - **Everything else is merged.** Recent: #24 (campaigns-tab category filter), #25/#26
   (docs: condense features + refresh roadmap/structure/HANDOFF), #27 (docs: queue the
-  demo-data spec), and **#28 (synthetic demo data — the feature)**. `main` tip is
-  `2a91c46` (the #28 merge); its deploy run is green. Merged head branches are
+  demo-data spec), **#28 (synthetic demo data — the feature)**, and #29 (docs: backlog +
+  HANDOFF refresh — `docs-backlog-handoff-refresh`, `main` tip `f486e98`). Merged head branches are
   auto-deleted.
 
 ## 4. Data model & code map (detail in roadmap.md / structure.md)
@@ -232,12 +236,8 @@ graduated off this list. See `features.md` → Low priority.
 
 ## 8. Likely next task
 
-**Two high-priority items are queued** (`features.md` → High priority) — start here:
-- **Multi-select status filter on the campaigns list** — the Status filter is
-  single-select today; make it multi-select by mirroring the campaigns-tab category
-  multi-select (PR #24): uiStore `campaignStatuses[]` + `toggleCampaignStatus`, a
-  presentational multi-toggle like `CategoryFilter`, and `useCampaigns` `.in("status", …)`
-  folded into the queryKey. Scoped to `campaigns.index.tsx`.
+**One high-priority item is queued** (`features.md` → High priority) — start here
+(the multi-select status filter is built and in review; see §2/§3):
 - **Responsive header for mobile** — `src/routes/__root.tsx` crowds the brand + three
   nav links at narrow widths with no responsive prefixes; optimize with Tailwind
   `sm:`/`md:` (no menu/hamburger primitive exists yet).

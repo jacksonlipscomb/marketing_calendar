@@ -10,7 +10,7 @@ Ship **50–80% of the features well enough to tell 100% of the story**. The sto
 
 Three tiers — **Implemented** (live in production), **High priority** (queued to build next), **Low priority** (deferred / parked / stretch) — plus a transient **Built, in review** holding area for code-complete work awaiting merge (it moves up to Implemented on deploy). Items carry their build state. Earlier this file tracked a numbered phase sequence; that history lives in git and the merged PRs.
 
-**Current state (2026-06-17):** the foundation, core UI, calendar, table view, filters, and the **synthetic demo-data generator + purge** (#28) are all live in production; nothing is in review. **Two high-priority items are now queued:** a multi-select status filter on the campaigns list, and a responsive (mobile) header. A low-priority `NorCal`→`Norcal` rename rounds out the new backlog. The rest is Low priority (the rename, templates, parked reminders, stretch UI) and does not block the demo; the product tells the full story today.
+**Current state (2026-06-17):** the foundation, core UI, calendar, table view, filters, and the **synthetic demo-data generator + purge** (#28) are all live in production. The **multi-select status filter on the campaigns list** is **built and in review** (not yet merged). **One high-priority item remains queued:** a responsive (mobile) header. A low-priority `NorCal`→`Norcal` rename rounds out the new backlog. The rest is Low priority (the rename, templates, parked reminders, stretch UI) and does not block the demo; the product tells the full story today.
 
 ## Implemented (live in production)
 
@@ -28,18 +28,11 @@ Shipped via merge to `main` — one line each; full detail, verification, and de
 
 ## Built, in review (not yet merged)
 
-_None right now._
+### Multi-select status filter on the campaigns list — *built, in review*
+
+The campaigns list's **Status** filter is now multi-select (was single-select `StatusFilter`, `value: CampaignStatus | "all"`), mirroring the shipped campaigns-tab category multi-select (#24): uiStore `campaignStatuses: CampaignStatus[]` + `toggleCampaignStatus` (default all selected); a new presentational `StatusMultiFilter` component; `useCampaigns` applies `.in("status", statuses)` when not all-selected and folds the selection into the queryKey via a sorted join. An empty status *or* category set short-circuits to no rows in `queryFn` (no reliance on `.in(col, [])`). Scope is the campaigns **list** only — the single-select `StatusFilter` is unchanged on the deliverable list (`campaigns.$id.tsx`) and the table chips (`table.tsx`). Client-only, no migration. Static checks green; runtime-verified on the local stack (Playwright 10/10). Moves to Implemented on merge.
 
 ## High priority
-
-### Multi-select status filter on the campaigns list — *not built*
-
-The campaigns list's **Status** filter is single-select today (`StatusFilter`, `value: CampaignStatus | "all"` in `campaigns.index.tsx`) — you can show Planned *or* In Progress *or* Done *or* All, but not "Planned + In Progress but not Done."
-
-- **Approach — mirror the shipped campaigns-tab category multi-select (#24):** add uiStore `campaignStatuses: CampaignStatus[]` + `toggleCampaignStatus` (default all selected, exactly like `campaignCategories`/`toggleCampaignCategory`); render a presentational multi-toggle like `CategoryFilter`; in `useCampaigns` apply `.in("status", statuses)` when not all-selected (all → skip the filter, none → no rows) and fold the selection into the queryKey via a sorted join — the same shape categories already use in `src/lib/campaigns.ts`.
-- **Scope:** the campaigns **list** only. The shared single-select `StatusFilter` stays as-is on the deliverable list (`campaigns.$id.tsx`, page-local state) and the table chips (`table.tsx`); generalizing those is an optional consistency follow-up.
-
-**Acceptance:** deselecting Done shows only Planned + In Progress campaigns; all-selected = no filter; the selection is independent of the calendar and survives in-session navigation (store-backed).
 
 ### Responsive header for mobile — *not built*
 

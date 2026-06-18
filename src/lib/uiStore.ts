@@ -2,9 +2,11 @@ import { create } from "zustand"
 import { addMonths, startOfMonth, subMonths } from "date-fns"
 import {
   CAMPAIGN_CATEGORIES,
+  CAMPAIGN_STATUSES,
   type CampaignCategory,
+  type CampaignStatus,
 } from "./database.types"
-import type { CampaignStatusFilter, RangeKey } from "./campaigns"
+import type { RangeKey } from "./campaigns"
 
 // What the schedule-email dialog needs to know about its target deliverable:
 // the id for the request, the title for the dialog copy.
@@ -26,8 +28,8 @@ type UiState = {
   // category filter is independent of the calendar's `activeCategories` above.
   campaignRange: RangeKey
   setCampaignRange: (range: RangeKey) => void
-  campaignStatus: CampaignStatusFilter
-  setCampaignStatus: (status: CampaignStatusFilter) => void
+  campaignStatuses: CampaignStatus[]
+  toggleCampaignStatus: (status: CampaignStatus) => void
   campaignCategories: CampaignCategory[]
   toggleCampaignCategory: (category: CampaignCategory) => void
 
@@ -54,8 +56,13 @@ export const useUiStore = create<UiState>((set) => ({
 
   campaignRange: "all",
   setCampaignRange: (range) => set({ campaignRange: range }),
-  campaignStatus: "all",
-  setCampaignStatus: (status) => set({ campaignStatus: status }),
+  campaignStatuses: [...CAMPAIGN_STATUSES],
+  toggleCampaignStatus: (status) =>
+    set((s) => ({
+      campaignStatuses: s.campaignStatuses.includes(status)
+        ? s.campaignStatuses.filter((x) => x !== status)
+        : [...s.campaignStatuses, status],
+    })),
   campaignCategories: [...CAMPAIGN_CATEGORIES],
   toggleCampaignCategory: (category) =>
     set((s) => ({
