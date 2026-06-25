@@ -32,6 +32,7 @@ import {
   completionPercent,
   useCampaignDeliverables,
 } from "@/lib/deliverables"
+import { useCategoryMap } from "@/lib/categories"
 import { useUiStore } from "@/lib/uiStore"
 
 // Split deliverables by how a new campaign window [start, end] affects them.
@@ -69,6 +70,7 @@ export function CampaignDetailPage() {
   const updateCampaign = useUpdateCampaign()
   const updateCampaignClamp = useUpdateCampaignClamp()
   const deleteCampaign = useDeleteCampaign()
+  const categoryMap = useCategoryMap()
   const openScheduleEmail = useUiStore((s) => s.openScheduleEmail)
   // Page-local: only this list cares, unlike the campaign filters in uiStore.
   const [statusFilter, setStatusFilter] = useState<DeliverableStatus | "all">(
@@ -125,8 +127,10 @@ export function CampaignDetailPage() {
           <div className="flex items-center gap-2">
             <span
               className="size-2.5 shrink-0 rounded-full"
-              style={{ backgroundColor: `var(--cat-${campaign.category})` }}
-              title={campaign.category}
+              style={{
+                backgroundColor: categoryMap.get(campaign.category_id)?.color,
+              }}
+              title={categoryMap.get(campaign.category_id)?.name}
             />
             <h2 className="text-xl font-semibold">{campaign.name}</h2>
             <Badge variant="secondary" className="capitalize">
@@ -230,7 +234,7 @@ export function CampaignDetailPage() {
           defaultValues={{
             name: campaign.name,
             goal: campaign.goal ?? "",
-            category: campaign.category,
+            category_id: campaign.category_id,
             start_date: campaign.start_date,
             end_date: campaign.end_date,
             segmentation: campaign.segmentation ?? "",

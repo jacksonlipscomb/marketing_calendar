@@ -1,11 +1,6 @@
 import { create } from "zustand"
 import { addMonths, startOfMonth, subMonths } from "date-fns"
-import {
-  CAMPAIGN_CATEGORIES,
-  CAMPAIGN_STATUSES,
-  type CampaignCategory,
-  type CampaignStatus,
-} from "./database.types"
+import { CAMPAIGN_STATUSES, type CampaignStatus } from "./database.types"
 import type { RangeKey } from "./campaigns"
 
 // What the schedule-email dialog needs to know about its target deliverable:
@@ -19,19 +14,23 @@ type UiState = {
   prevMonth: () => void
   goToday: () => void
 
-  // Calendar category filter — which campaign categories the calendar shows.
-  activeCategories: CampaignCategory[]
-  toggleCategory: (category: CampaignCategory) => void
+  // Calendar category filter. Categories are dynamic (a table now), so the store
+  // can't default to a static "all selected" list — it tracks which category ids
+  // are HIDDEN instead. Empty = nothing hidden = all shown (the default), and a
+  // newly created category is visible until explicitly hidden. A chip is active
+  // when its id is NOT in this set.
+  hiddenCalendarCategoryIds: string[]
+  toggleCalendarCategory: (id: string) => void
 
   // Campaign list filters (kept here rather than page-local so the selection
   // survives navigating away and back within a session). The campaign-list
-  // category filter is independent of the calendar's `activeCategories` above.
+  // category filter is independent of the calendar's hidden set above.
   campaignRange: RangeKey
   setCampaignRange: (range: RangeKey) => void
   campaignStatuses: CampaignStatus[]
   toggleCampaignStatus: (status: CampaignStatus) => void
-  campaignCategories: CampaignCategory[]
-  toggleCampaignCategory: (category: CampaignCategory) => void
+  hiddenListCategoryIds: string[]
+  toggleListCategory: (id: string) => void
 
   // Schedule-email dialog for a given deliverable. Campaign/deliverable
   // create+edit are pages (page pattern), not dialogs, so no form state here.
@@ -46,12 +45,12 @@ export const useUiStore = create<UiState>((set) => ({
   prevMonth: () => set((s) => ({ currentMonth: subMonths(s.currentMonth, 1) })),
   goToday: () => set({ currentMonth: startOfMonth(new Date()) }),
 
-  activeCategories: [...CAMPAIGN_CATEGORIES],
-  toggleCategory: (category) =>
+  hiddenCalendarCategoryIds: [],
+  toggleCalendarCategory: (id) =>
     set((s) => ({
-      activeCategories: s.activeCategories.includes(category)
-        ? s.activeCategories.filter((c) => c !== category)
-        : [...s.activeCategories, category],
+      hiddenCalendarCategoryIds: s.hiddenCalendarCategoryIds.includes(id)
+        ? s.hiddenCalendarCategoryIds.filter((x) => x !== id)
+        : [...s.hiddenCalendarCategoryIds, id],
     })),
 
   campaignRange: "all",
@@ -63,12 +62,12 @@ export const useUiStore = create<UiState>((set) => ({
         ? s.campaignStatuses.filter((x) => x !== status)
         : [...s.campaignStatuses, status],
     })),
-  campaignCategories: [...CAMPAIGN_CATEGORIES],
-  toggleCampaignCategory: (category) =>
+  hiddenListCategoryIds: [],
+  toggleListCategory: (id) =>
     set((s) => ({
-      campaignCategories: s.campaignCategories.includes(category)
-        ? s.campaignCategories.filter((c) => c !== category)
-        : [...s.campaignCategories, category],
+      hiddenListCategoryIds: s.hiddenListCategoryIds.includes(id)
+        ? s.hiddenListCategoryIds.filter((x) => x !== id)
+        : [...s.hiddenListCategoryIds, id],
     })),
 
   scheduleDialog: { open: false, deliverable: null },

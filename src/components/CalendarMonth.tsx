@@ -13,10 +13,13 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useUiStore } from "@/lib/uiStore"
 import { useCampaignsInRange } from "@/lib/campaigns"
+import { useCategoryMap } from "@/lib/categories"
 import { monthGridRange, useMonthDeliverables } from "@/lib/deliverables"
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 const dayKey = (d: Date) => format(d, "yyyy-MM-dd")
+// Color for a bar whose category row hasn't loaded yet (or was deleted).
+const FALLBACK_CAT_COLOR = "#94a3b8"
 
 // Bar band geometry (px). Bars are absolutely positioned over each week row.
 // Two stacked bands: campaign bars first, then a thinner deliverable band below.
@@ -105,9 +108,10 @@ function segmentStyle(startCol: number, endCol: number) {
 // colored by campaign category and filtered by the same category toggles; clicking
 // a campaign bar opens the campaign, a deliverable bar opens the deliverable.
 export function CalendarMonth() {
-  const { currentMonth, nextMonth, prevMonth, goToday, activeCategories } =
-    useUiStore()
+  const { currentMonth, nextMonth, prevMonth, goToday } = useUiStore()
+  const hidden = useUiStore((s) => s.hiddenCalendarCategoryIds)
   const openScheduleEmail = useUiStore((s) => s.openScheduleEmail)
+  const categoryMap = useCategoryMap()
   const navigate = useNavigate()
 
   const { start: gridStart, end: gridEnd } = monthGridRange(currentMonth)
@@ -128,21 +132,21 @@ export function CalendarMonth() {
 
   const visibleCampaigns = useMemo(
     () =>
-      (campaignsQuery.data ?? []).filter((c) =>
-        activeCategories.includes(c.category),
+      (campaignsQuery.data ?? []).filter(
+        (c) => !hidden.includes(c.category_id),
       ),
-    [campaignsQuery.data, activeCategories],
+    [campaignsQuery.data, hidden],
   )
 
   // Deliverables share the calendar's category filter (via the parent campaign's
-  // category, embedded on the row).
+  // category_id, embedded on the row).
   const visibleDeliverables = useMemo(
     () =>
       deliverables.filter((d) => {
-        const category = d.campaigns?.category
-        return category ? activeCategories.includes(category) : true
+        const id = d.campaigns?.category_id
+        return id ? !hidden.includes(id) : true
       }),
-    [deliverables, activeCategories],
+    [deliverables, hidden],
   )
 
   function openCampaign(campaignId: string) {
@@ -266,9 +270,11 @@ export function CalendarMonth() {
                     top: BAND_TOP + seg.lane * LANE_H,
                     height: BAR_H,
                     ...segmentStyle(seg.startCol, seg.endCol),
-                    backgroundColor: `var(--cat-${seg.item.category})`,
+                    backgroundColor:
+                      categoryMap.get(seg.item.category_id)?.color ??
+                      FALLBACK_CAT_COLOR,
                   }}
-                  title={`${seg.item.name} · ${seg.item.category} · ${seg.item.start_date} → ${seg.item.end_date}`}
+                  title={`${seg.item.name} · ${categoryMap.get(seg.item.category_id)?.name ?? "—"} · ${seg.item.start_date} → ${seg.item.end_date}`}
                 >
                   <span className="truncate">{seg.item.name}</span>
                 </div>
@@ -300,7 +306,9 @@ export function CalendarMonth() {
                     top: delivBandTop + seg.lane * DELIV_LANE_H,
                     height: DELIV_BAR_H,
                     ...segmentStyle(seg.startCol, seg.endCol),
-                    backgroundColor: `var(--cat-${seg.item.campaigns?.category ?? "recruiting"})`,
+                    backgroundColor:
+                      categoryMap.get(seg.item.campaigns?.category_id ?? "")
+                        ?.color ?? FALLBACK_CAT_COLOR,
                   }}
                   title={`${seg.item.title} · ${seg.item.campaigns?.name ?? "campaign"} · ${seg.item.start_date} → ${seg.item.end_date}`}
                 >

@@ -3,7 +3,6 @@ import { addDays, format } from "date-fns"
 
 import { supabase } from "./supabase"
 import type {
-  CampaignCategory,
   CampaignInsert,
   CampaignStatus,
   DeliverableInsert,
@@ -46,7 +45,7 @@ interface DeliverableSpec {
 
 interface CampaignSpec {
   name: string
-  category: CampaignCategory
+  category: string // category name, resolved to a category_id at generate time
   goal: string
   segmentation: string
   owners: string[]
@@ -253,7 +252,12 @@ function deliverableStatus(start: Date, end: Date, today: Date): DeliverableStat
 // Turn the fixtures into ready-to-insert rows. Each campaign gets a client-side
 // id so its deliverables can reference it without a second round-trip to read
 // back inserted ids. `is_seed: true` is set here and nowhere else in the app.
-export function buildDemoData(today: Date = new Date()): {
+// `categoryIdFor` maps a fixture's category name to a real category_id (categories
+// are user-managed now), so generation references existing category rows.
+export function buildDemoData(
+  categoryIdFor: (name: string) => string,
+  today: Date = new Date(),
+): {
   campaigns: CampaignInsert[]
   deliverables: DeliverableInsert[]
 } {
@@ -269,7 +273,7 @@ export function buildDemoData(today: Date = new Date()): {
       id,
       name: spec.name,
       goal: spec.goal,
-      category: spec.category,
+      category_id: categoryIdFor(spec.category),
       start_date: iso(start),
       end_date: iso(end),
       segmentation: spec.segmentation,
@@ -311,10 +315,26 @@ export function useGenerateDemoData() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (): Promise<{ campaigns: number; deliverables: number }> => {
+      // Categories are user-managed, so map the fixtures' category names to real
+      // ids (case-insensitive), falling back to the first category for any name
+      // that was renamed/deleted. Require at least one category to exist.
+      const { data: cats, error: catErr } = await supabase
+        .from("categories")
+        .select("id, name")
+      if (catErr) throw new Error(catErr.message)
+      if (!cats || cats.length === 0)
+        throw new Error(
+          "Create at least one category before generating demo data.",
+        )
+      const idByName = new Map(cats.map((c) => [c.name.toLowerCase(), c.id]))
+      const fallbackId = cats[0].id
+      const categoryIdFor = (name: string) =>
+        idByName.get(name.toLowerCase()) ?? fallbackId
+
       const purge = await supabase.from("campaigns").delete().eq("is_seed", true)
       if (purge.error) throw new Error(purge.error.message)
 
-      const { campaigns, deliverables } = buildDemoData()
+      const { campaigns, deliverables } = buildDemoData(categoryIdFor)
 
       const insertedCampaigns = await supabase.from("campaigns").insert(campaigns)
       if (insertedCampaigns.error) throw new Error(insertedCampaigns.error.message)

@@ -10,9 +10,11 @@
 > actions run on Node 24 (PR #17) and the deploy is hardened against a flaky
 > Supabase-CLI lookup (PR #21). The **multi-select status filter on the campaigns
 > list** (PR #30) and the **responsive (mobile) header** (PR #32) are merged and
-> live; nothing is mid-review. **One high-priority item is now queued (not built):**
-> user-managed campaign categories (CRUD) — see `features.md` → High priority and §2/§8.
-> The reminder path is **built but parked**; everything else outstanding is Low-priority.
+> live. **In progress — user-managed campaign categories (CRUD), as two PRs:**
+> PR A (the `enum → categories` table migration + data-layer + rewire) is **in
+> review**; PR B (the management-panel UI) is **next, not built** — see `features.md`
+> and §2/§3/§8. The reminder path is **built but parked**; everything else
+> outstanding is Low-priority.
 > Read `CLAUDE.md`, `roadmap.md`, `structure.md`, and `features.md` first — they are
 > current and authoritative. This file orients you and captures the operational/workflow
 > knowledge those docs don't.
@@ -101,17 +103,25 @@ route around it.
 - Full spec, verification record, and the activation checklist: **`docs/archive/phase4-reminders.md`**.
 
 **Built, in review (not yet merged):**
-- **None right now** — no feature work is awaiting merge.
+- **Campaign categories — `enum → table` migration + rewire (PR A of 2)** — moves
+  categories off the `campaign_category` enum onto a managed `categories` table
+  (migration `0007`: table + RLS + grants + hex-color/non-empty checks +
+  case-insensitive-unique index, seeded with the four current colors; `campaigns`
+  gains `category_id uuid` FK `ON DELETE RESTRICT`, backfilled + asserted;
+  `update_campaign_clamp` recreated with `p_category_id`). Client: new
+  `src/lib/categories.ts` data layer; per-row colors replace the `--cat-*` CSS vars;
+  the calendar + list category filters use a **hidden-set** `uiStore` model;
+  `useCampaigns` takes `categoryFilter: string[] | null`; form/detail/table/calendar/
+  demoData all rewired. **No user-visible change** (same four categories, table-backed).
+  Verified on the local stack (migration + Playwright 10/10). **PR B (the management
+  panel) is next.**
 
 **Queued, NOT built (high-priority backlog):**
-- **Manage campaign categories (CRUD)** — let the team create / rename+recolor /
-  delete campaign categories instead of the fixed four. Requires moving categories
-  from the `campaign_category` **enum** to a `categories` table (color per row,
-  replacing the static `--cat-*` CSS vars) and rewiring every consumer. Settled:
-  delete is **blocked while in use** (FK restrict); the UI is a **panel on the
-  Campaigns page** (like `DemoDataPanel`). Spec + (not-yet-approved) implementation
-  considerations in `features.md` → High priority; likely splits into a
-  migration+data-layer PR and a UI PR. **Not started.**
+- **Manage campaign categories — management UI (PR B of 2)** — the user-facing
+  create / rename+recolor / delete panel on the Campaigns page (like `DemoDataPanel`),
+  reusing PR A's category hooks + `ConfirmDeleteButton`. Delete-in-use is already
+  blocked at the DB (FK restrict); the panel disables/explains via the usage count.
+  See `features.md` → High priority. **Not started; cut from `main` after PR A merges.**
 
 **Low priority / deferred:** campaign templates, the parked reminders, and stretch UI
 (week view, text wrapping, drawer). The campaigns-tab category filter (PR #24), the
@@ -124,29 +134,37 @@ shipped and graduated off this list. See `features.md` → Low priority.
   intentionally; **currently CONFLICTING** with `main` (its `features.md` /
   `structure.md` edits are superseded by later docs). That's expected — leave it;
   when un-parking, rebase onto `main` and drop the stale doc edits.
-- **No feature branches open.** PR #11 above is the only intentionally-open PR.
+- **PR A — `feat-categories-migration`** (categories `enum → table` migration +
+  data layer + rewire), open and awaiting the owner's merge. **Carries migration
+  `0007`**, which CI `db push` applies to prod on merge — the PR body calls that out.
+  PR B (the management panel) is cut from `main` only after this merges (no stacking).
 - **Everything else is merged.** Recent: **#30 (multi-select status filter)**, #31
   (docs: graduate #30), **#32 (responsive mobile header — the feature)**, #33
   (chore: `NorCal`→`Norcal` rename + graduate #32), and **#34 (docs: queued the
-  categories-CRUD high-priority spec — no code, same shape as #27)**. Merged head
-  branches are auto-deleted.
+  categories-CRUD high-priority spec)**. Merged head branches are auto-deleted.
 
 ## 4. Data model & code map (detail in roadmap.md / structure.md)
 
-- **Tables:** `campaigns`, `deliverables` (FK→campaigns, cascade), `email_jobs`
-  (FK→deliverables, cascade). **Enums:** `campaign_category`, `campaign_status`
+- **Tables:** `categories` (id, name, color; PR A), `campaigns` (FK→categories via
+  `category_id`, restrict), `deliverables` (FK→campaigns, cascade), `email_jobs`
+  (FK→deliverables, cascade). **Enums:** `campaign_status`
   (planned/in_progress/done), `deliverable_status` (backlog/in_progress/complete),
-  `email_status` (draft/scheduled/sent/failed).
+  `email_status` (draft/scheduled/sent/failed). *(The `campaign_category` enum was
+  removed in `0007` — categories are a table now.)*
 - **Migrations:** `0001`–`0003` (PoC, applied long ago), `0004_reset_campaigns.sql`
   (the live reset), `0005_deliverable_dates.sql` (start/end spans + bound triggers +
   clamp RPC), `0006_seed_flag.sql` (additive `campaigns.is_seed` flag + partial index
-  for the demo-data purge). Never edit an applied migration; new schema = new file.
+  for the demo-data purge), `0007_categories.sql` (categories `enum → table`:
+  `categories` table + RLS/grants, `campaigns.category_id` FK, `update_campaign_clamp`
+  recreated, `campaign_category` enum dropped — PR A, in review). Never edit an
+  applied migration; new schema = new file.
 - **Edge functions:** `supabase/functions/schedule-email/` (live),
   `supabase/functions/send-reminders/` (parked, exists only in PR #11).
-- **Frontend (`src/`):** hooks in `lib/` (`campaigns.ts`, `deliverables.ts`,
-  `emailJobs.ts`, `schemas.ts`, `uiStore.ts`, `supabase.ts`, `auth.ts`, `env.ts`,
-  `csv.ts`, `demoData.ts` [demo-data fixtures + `buildDemoData` + generate/purge hooks],
-  hand-written `database.types.ts`); components incl. `CalendarMonth`,
+- **Frontend (`src/`):** hooks in `lib/` (`campaigns.ts`, `categories.ts`
+  [`useCategories`/`useCategoryMap`/`useCategoryUsageCounts` + CRUD — PR A],
+  `deliverables.ts`, `emailJobs.ts`, `schemas.ts`, `uiStore.ts`, `supabase.ts`,
+  `auth.ts`, `env.ts`, `csv.ts`, `demoData.ts` [demo-data fixtures + `buildDemoData` +
+  generate/purge hooks], hand-written `database.types.ts`); components incl. `CalendarMonth`,
   `CampaignForm`, `DeliverableForm`, `OwnersInput`, `RangeFilter`, `StatusFilter`,
   `CategoryFilter`, `Breadcrumbs`, `ConfirmDeleteButton`, `DemoDataPanel`,
   `ScheduleEmailDialog`, `UpcomingSends`; code-based routes in `router.tsx` + `routes/`.
@@ -245,16 +263,15 @@ shipped and graduated off this list. See `features.md` → Low priority.
 
 ## 8. Likely next task
 
-**Start with the one queued high-priority item** (`features.md` → High priority):
-- **Manage campaign categories (CRUD)** — replace the fixed four with user-managed
-  categories. The core lift is migrating categories off the `campaign_category`
-  **enum** into a `categories` table (color per row) and rewiring every consumer
-  (form, both filters, calendar, table, store, `demoData`). Settled: delete blocked
-  while in use (FK restrict); UI = a Campaigns-page panel. The implementation
-  considerations in `features.md` are **not yet approved** — give it its own plan +
-  owner sign-off, and expect to split it (migration+data-layer, then UI). The
-  migration alters a column and recreates the `update_campaign_clamp` RPC, so it
-  needs the migration callout.
+**Next: PR B of the categories feature** — once PR A (`feat-categories-migration`)
+merges, cut `feat-categories-manager` from updated `main` and build the management
+**panel on the Campaigns page** (create / rename+recolor / delete), reusing PR A's
+`useCreateCategory` / `useUpdateCategory` / `useDeleteCategory` /
+`useCategoryUsageCounts` hooks and `ConfirmDeleteButton`. Add a `categoryFormSchema`
+(non-empty name, hex color) mirroring the `0007` DB checks; surface `23505` as a
+friendly "name already exists". Delete-in-use is already blocked at the DB (FK
+restrict) — disable/explain via the usage count. Client-only, no migration. Spec in
+`features.md` → High priority.
 
 Then the Low-priority tier (`features.md` → Low priority):
 - **Campaign templates** — needs a `00xx_templates.sql` (`templates` +

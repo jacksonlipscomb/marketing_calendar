@@ -22,13 +22,12 @@ import {
   type DeliverableTableRow,
 } from "@/lib/deliverables"
 import {
-  CAMPAIGN_CATEGORIES,
   CAMPAIGN_STATUSES,
   DELIVERABLE_STATUSES,
-  type CampaignCategory,
   type CampaignStatus,
   type DeliverableStatus,
 } from "@/lib/database.types"
+import { useCategories } from "@/lib/categories"
 import { downloadCsv } from "@/lib/csv"
 
 const fmtDate = (v: string) => format(new Date(`${v}T00:00:00`), "MMM d, yyyy")
@@ -143,10 +142,12 @@ const columns = [
 // deliverable, so campaigns with no deliverables don't appear.
 export function TablePage() {
   const { data = [], isLoading, error } = useDeliverablesTable()
+  const { data: categories = [] } = useCategories()
+  const categoryNames = categories.map((c) => c.name)
 
   const [globalFilter, setGlobalFilter] = useState("")
   const [sorting, setSorting] = useState<SortingState>([])
-  const [category, setCategory] = useState<CampaignCategory | "all">("all")
+  const [category, setCategory] = useState<string | "all">("all")
   const [campaignStatus, setCampaignStatus] = useState<CampaignStatus | "all">(
     "all",
   )
@@ -213,7 +214,7 @@ export function TablePage() {
         />
         <StatusFilter
           label="Category:"
-          options={CAMPAIGN_CATEGORIES}
+          options={categoryNames}
           value={category}
           onChange={setCategory}
         />

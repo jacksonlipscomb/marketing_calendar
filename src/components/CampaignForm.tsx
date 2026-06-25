@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 
@@ -14,12 +14,8 @@ import {
 } from "@/components/ui/select"
 import { OwnersInput } from "@/components/OwnersInput"
 import { campaignFormSchema, type CampaignFormValues } from "@/lib/schemas"
-import {
-  CAMPAIGN_CATEGORIES,
-  CAMPAIGN_STATUSES,
-  type CampaignCategory,
-  type CampaignStatus,
-} from "@/lib/database.types"
+import { useCategories } from "@/lib/categories"
+import { CAMPAIGN_STATUSES, type CampaignStatus } from "@/lib/database.types"
 
 // Shared create/edit campaign form (page pattern — rendered on a route, not in a
 // dialog). The page owns the mutation; this component owns fields + validation.
@@ -35,13 +31,14 @@ export function CampaignForm({
   pending: boolean
 }) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const { data: categories = [], isLoading: categoriesLoading } = useCategories()
 
   const form = useForm<CampaignFormValues>({
     resolver: zodResolver(campaignFormSchema),
     defaultValues: {
       name: "",
       goal: "",
-      category: "recruiting",
+      category_id: "",
       start_date: "",
       end_date: "",
       segmentation: "",
@@ -52,6 +49,19 @@ export function CampaignForm({
     },
   })
   const errors = form.formState.errors
+
+  // Categories load after first render, so default the create form to the first
+  // one once they arrive — but only if the field is still empty, so an edit
+  // default (the campaign's existing category_id) is never overwritten.
+  useEffect(() => {
+    if (categories.length > 0 && !form.getValues("category_id")) {
+      form.setValue("category_id", categories[0].id)
+    }
+  }, [categories, form])
+
+  // No category to pick → block create until one exists (the manager panel lives
+  // on the Campaigns page). Don't show this while the list is still loading.
+  const noCategories = !categoriesLoading && categories.length === 0
 
   async function submit(values: CampaignFormValues) {
     setErrorMsg(null)
@@ -86,25 +96,39 @@ export function CampaignForm({
           <Label htmlFor="category">Category</Label>
           <Controller
             control={form.control}
-            name="category"
+            name="category_id"
             render={({ field }) => (
-              <Select
-                value={field.value}
-                onValueChange={(v) => field.onChange(v as CampaignCategory)}
-              >
+              <Select value={field.value} onValueChange={field.onChange}>
                 <SelectTrigger id="category">
-                  <SelectValue />
+                  <SelectValue placeholder="Select a category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {CAMPAIGN_CATEGORIES.map((c) => (
-                    <SelectItem key={c} value={c} className="capitalize">
-                      {c}
+                  {categories.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      <span className="flex items-center gap-2">
+                        <span
+                          className="size-2.5 shrink-0 rounded-full"
+                          style={{ backgroundColor: c.color }}
+                        />
+                        {c.name}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             )}
           />
+          {noCategories && (
+            <p className="text-muted-foreground text-xs">
+              No categories yet — create one in “Manage categories” on the
+              Campaigns page first.
+            </p>
+          )}
+          {errors.category_id && (
+            <p className="text-destructive text-xs">
+              {errors.category_id.message}
+            </p>
+          )}
         </div>
 
         <div className="grid gap-2">
@@ -199,7 +223,7 @@ export function CampaignForm({
       )}
 
       <div className="flex gap-2">
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" disabled={pending || noCategories}>
           {submitLabel}
         </Button>
       </div>

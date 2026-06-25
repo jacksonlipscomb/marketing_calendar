@@ -3,9 +3,8 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Category colors for the calendar (feature 1). Referenced via Tailwind utilities
-   like bg-(--cat-recruiting) and in CategoryFilter. Kept as CSS vars so the palette
-   lives in one place. */
+/* Campaign category colors now live per-row in the `categories` table (migration
+   0007) and render from `category.color`, so there are no static --cat-* vars. */
 :root {
   --radius: 0.625rem;
   --background: oklch(1 0 0);
@@ -27,12 +26,6 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
-
-  /* event categories */
-  --cat-recruiting: oklch(0.62 0.19 255);
-  --cat-retention: oklch(0.7 0.17 160);
-  --cat-regatta: oklch(0.7 0.18 60);
-  --cat-fundraising: oklch(0.63 0.23 15);
 }
 
 .dark {
