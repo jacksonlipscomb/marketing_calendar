@@ -8,7 +8,6 @@ import {
 } from "date-fns"
 import { supabase } from "./supabase"
 import type {
-  CampaignCategory,
   CampaignStatus,
   DeliverableInsert,
   DeliverableRow,
@@ -28,12 +27,12 @@ export function monthGridRange(month: Date) {
 }
 
 // Deliverables due inside an arbitrary date window, with the parent campaign's
-// name and category embedded (category drives the color chip). Feeds both the
-// calendar grid and the timeline ticks.
+// name and category_id embedded (category_id drives the color chip via the
+// category map). Feeds both the calendar grid and the timeline ticks.
 export type CalendarDeliverable = DeliverableRow & {
   campaigns: {
     name: string
-    category: import("./database.types").CampaignCategory
+    category_id: string
   } | null
 }
 
@@ -47,7 +46,7 @@ export function useDeliverablesInRange(start: Date, end: Date) {
     queryFn: async (): Promise<CalendarDeliverable[]> => {
       const { data, error } = await supabase
         .from("deliverables")
-        .select("*, campaigns(name, category)")
+        .select("*, campaigns(name, category_id)")
         .lte("start_date", fmt(end))
         .gte("end_date", fmt(start))
         .order("start_date", { ascending: true })
@@ -73,7 +72,7 @@ export type DeliverableTableRow = {
   campaign_name: string
   campaign_start: string
   campaign_end: string
-  category: CampaignCategory
+  category: string
   campaign_status: CampaignStatus
   campaign_owners: string[]
   deliverable_title: string
@@ -90,7 +89,9 @@ type TableEmbed = DeliverableRow & {
     name: string
     start_date: string
     end_date: string
-    category: CampaignCategory
+    // deliverables → campaigns → categories (nested embed; category lives on the
+    // campaign, not the deliverable). FK is NOT NULL so this is always present.
+    categories: { name: string } | null
     status: CampaignStatus
     owners: string[]
   } | null
@@ -107,7 +108,7 @@ export function useDeliverablesTable() {
       const { data, error } = await supabase
         .from("deliverables")
         .select(
-          "*, campaigns(name, start_date, end_date, category, status, owners)",
+          "*, campaigns(name, start_date, end_date, categories(name), status, owners)",
         )
         .order("start_date", { ascending: true })
         .returns<TableEmbed[]>()
@@ -120,7 +121,7 @@ export function useDeliverablesTable() {
           campaign_name: d.campaigns.name,
           campaign_start: d.campaigns.start_date,
           campaign_end: d.campaigns.end_date,
-          category: d.campaigns.category,
+          category: d.campaigns.categories?.name ?? "",
           campaign_status: d.campaigns.status,
           campaign_owners: d.campaigns.owners,
           deliverable_title: d.title,

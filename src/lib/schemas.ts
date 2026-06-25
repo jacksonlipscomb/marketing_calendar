@@ -1,9 +1,9 @@
 import { z } from "zod"
-import {
-  CAMPAIGN_CATEGORIES,
-  CAMPAIGN_STATUSES,
-  DELIVERABLE_STATUSES,
-} from "./database.types"
+import { CAMPAIGN_STATUSES, DELIVERABLE_STATUSES } from "./database.types"
+
+// Hex color string (#rrggbb) — matches the `categories.color` DB check (0007) and
+// the value an <input type="color"> produces. Shared by the category form (PR B).
+export const HEX_COLOR_RE = /^#[0-9a-f]{6}$/i
 
 // Campaign create/edit form. Direct, RLS-governed writes to `campaigns`.
 // Dates are yyyy-mm-dd strings from <input type="date">; the same inclusive
@@ -13,7 +13,7 @@ export const campaignFormSchema = z
   .object({
     name: z.string().trim().min(1, "Name is required"),
     goal: z.string().trim().optional(),
-    category: z.enum(CAMPAIGN_CATEGORIES),
+    category_id: z.string().min(1, "Pick a category"),
     start_date: z.string().min(1, "Start date is required"),
     end_date: z.string().min(1, "End date is required"),
     segmentation: z.string().trim().optional(),
@@ -32,7 +32,7 @@ export function campaignPayload(values: CampaignFormValues) {
   return {
     name: values.name,
     goal: values.goal?.trim() ? values.goal : null,
-    category: values.category,
+    category_id: values.category_id,
     start_date: values.start_date,
     end_date: values.end_date,
     segmentation: values.segmentation?.trim() ? values.segmentation : null,

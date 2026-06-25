@@ -1,43 +1,42 @@
 import { cn } from "@/lib/utils"
-import { CAMPAIGN_CATEGORIES, type CampaignCategory } from "@/lib/database.types"
+import type { CategoryRow } from "@/lib/database.types"
 
 // Presentational campaign-category toggle filter. Controlled by the caller so the
-// same UI serves the calendar (wired to uiStore.activeCategories) and the campaign
-// list (wired to uiStore.campaignCategories) — two independent selections.
+// same UI serves the calendar and the campaign list (two independent selections).
+// `value` is the set of SELECTED (visible) category ids — the caller derives it
+// from its hidden-set store slice and toggles by id. Colors come from each row.
 export function CategoryFilter({
+  categories,
   value,
   onToggle,
   label = "Show:",
 }: {
-  value: CampaignCategory[]
-  onToggle: (category: CampaignCategory) => void
+  categories: CategoryRow[]
+  value: string[]
+  onToggle: (id: string) => void
   label?: string
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="text-muted-foreground text-sm">{label}</span>
-      {CAMPAIGN_CATEGORIES.map((category) => {
-        const active = value.includes(category)
+      {categories.map((category) => {
+        const active = value.includes(category.id)
         return (
           <button
-            key={category}
+            key={category.id}
             type="button"
             aria-pressed={active}
-            data-testid={`filter-${category}`}
-            onClick={() => onToggle(category)}
+            data-testid={`filter-${category.id}`}
+            onClick={() => onToggle(category.id)}
             className={cn(
               "rounded-full border px-3 py-1 text-xs font-medium capitalize transition-colors",
               active
                 ? "border-transparent text-white"
                 : "bg-background text-muted-foreground hover:bg-accent",
             )}
-            style={
-              active
-                ? { backgroundColor: `var(--cat-${category})` }
-                : undefined
-            }
+            style={active ? { backgroundColor: category.color } : undefined}
           >
-            {category}
+            {category.name}
           </button>
         )
       })}

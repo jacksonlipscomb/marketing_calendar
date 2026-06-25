@@ -13,9 +13,8 @@ import {
   startOfYear,
 } from "date-fns"
 import { supabase } from "./supabase"
-import { CAMPAIGN_CATEGORIES, CAMPAIGN_STATUSES } from "./database.types"
+import { CAMPAIGN_STATUSES } from "./database.types"
 import type {
-  CampaignCategory,
   CampaignInsert,
   CampaignRow,
   CampaignStatus,
@@ -67,20 +66,24 @@ export function rangeBounds(
 export function useCampaigns(
   range: RangeKey = "all",
   statuses: CampaignStatus[] = [...CAMPAIGN_STATUSES],
-  categories: CampaignCategory[] = [...CAMPAIGN_CATEGORIES],
+  categoryFilter: string[] | null = null,
 ) {
   const bounds = rangeBounds(range)
-  // All selected = no constraint; otherwise filter to the chosen set (empty =
-  // none selected = no rows). Each key segment is stable/order-independent so
-  // toggling refetches correctly, with "none" distinguishing the empty set.
+  // statuses: all selected = no constraint; empty = no rows. Key segments are
+  // stable/order-independent so toggling refetches correctly.
   const allStatuses = statuses.length === CAMPAIGN_STATUSES.length
   const statusKey = allStatuses
     ? "all"
     : [...statuses].sort().join("|") || "none"
-  const allCategories = categories.length === CAMPAIGN_CATEGORIES.length
-  const categoryKey = allCategories
-    ? "all"
-    : [...categories].sort().join("|") || "none"
+  // categoryFilter: null = no constraint (caller's hidden set is empty), [] = none
+  // selected → no rows, [ids] = restrict to those category ids. Keyed off the
+  // caller's null/[]/ids, never recomputed from a (briefly empty) loading list.
+  const categoryKey =
+    categoryFilter === null
+      ? "all"
+      : categoryFilter.length === 0
+        ? "none"
+        : [...categoryFilter].sort().join("|")
   return useQuery({
     queryKey: [
       "campaigns",
@@ -92,7 +95,11 @@ export function useCampaigns(
     queryFn: async (): Promise<CampaignRow[]> => {
       // An empty selection means nothing is selected → no rows. Return early
       // rather than rely on PostgREST serializing `.in(col, [])` to no rows.
-      if (statuses.length === 0 || categories.length === 0) return []
+      if (
+        statuses.length === 0 ||
+        (categoryFilter !== null && categoryFilter.length === 0)
+      )
+        return []
       let query = supabase.from("campaigns").select("*")
       if (bounds) {
         query = query
@@ -102,8 +109,8 @@ export function useCampaigns(
       if (!allStatuses) {
         query = query.in("status", statuses)
       }
-      if (!allCategories) {
-        query = query.in("category", categories)
+      if (categoryFilter !== null) {
+        query = query.in("category_id", categoryFilter)
       }
       const { data, error } = await query.order("start_date", {
         ascending: true,
@@ -205,7 +212,7 @@ export function useUpdateCampaignClamp() {
       id: string
       name: string
       goal: string | null
-      category: CampaignRow["category"]
+      category_id: string
       start_date: string
       end_date: string
       segmentation: string | null
@@ -218,7 +225,7 @@ export function useUpdateCampaignClamp() {
           p_id: values.id,
           p_name: values.name,
           p_goal: values.goal,
-          p_category: values.category,
+          p_category_id: values.category_id,
           p_start: values.start_date,
           p_end: values.end_date,
           p_segmentation: values.segmentation,

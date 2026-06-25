@@ -9,12 +9,33 @@
 export type Database = {
   public: {
     Tables: {
+      categories: {
+        Row: {
+          id: string
+          name: string
+          color: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          color: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          color?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       campaigns: {
         Row: {
           id: string
           name: string
           goal: string | null
-          category: Database["public"]["Enums"]["campaign_category"]
+          category_id: string
           start_date: string
           end_date: string
           segmentation: string | null
@@ -29,7 +50,7 @@ export type Database = {
           id?: string
           name: string
           goal?: string | null
-          category: Database["public"]["Enums"]["campaign_category"]
+          category_id: string
           start_date: string
           end_date: string
           segmentation?: string | null
@@ -44,7 +65,7 @@ export type Database = {
           id?: string
           name?: string
           goal?: string | null
-          category?: Database["public"]["Enums"]["campaign_category"]
+          category_id?: string
           start_date?: string
           end_date?: string
           segmentation?: string | null
@@ -55,7 +76,14 @@ export type Database = {
           created_at?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "campaigns_category_id_fkey"
+            columns: ["category_id"]
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       deliverables: {
         Row: {
@@ -166,7 +194,7 @@ export type Database = {
           p_id: string
           p_name: string
           p_goal: string | null
-          p_category: Database["public"]["Enums"]["campaign_category"]
+          p_category_id: string
           p_start: string
           p_end: string
           p_segmentation: string | null
@@ -178,7 +206,6 @@ export type Database = {
       }
     }
     Enums: {
-      campaign_category: "recruiting" | "retention" | "regatta" | "fundraising"
       campaign_status: "planned" | "in_progress" | "done"
       deliverable_status: "backlog" | "in_progress" | "complete"
       email_status: "draft" | "scheduled" | "sent" | "failed"
@@ -187,11 +214,13 @@ export type Database = {
   }
 }
 
-export type CampaignCategory = Database["public"]["Enums"]["campaign_category"]
 export type CampaignStatus = Database["public"]["Enums"]["campaign_status"]
 export type DeliverableStatus = Database["public"]["Enums"]["deliverable_status"]
 export type EmailStatus = Database["public"]["Enums"]["email_status"]
 
+export type CategoryRow = Database["public"]["Tables"]["categories"]["Row"]
+export type CategoryInsert = Database["public"]["Tables"]["categories"]["Insert"]
+export type CategoryUpdate = Database["public"]["Tables"]["categories"]["Update"]
 export type CampaignRow = Database["public"]["Tables"]["campaigns"]["Row"]
 export type CampaignInsert = Database["public"]["Tables"]["campaigns"]["Insert"]
 export type CampaignUpdate = Database["public"]["Tables"]["campaigns"]["Update"]
@@ -202,12 +231,6 @@ export type DeliverableUpdate =
   Database["public"]["Tables"]["deliverables"]["Update"]
 export type EmailJobRow = Database["public"]["Tables"]["email_jobs"]["Row"]
 
-export const CAMPAIGN_CATEGORIES = [
-  "recruiting",
-  "retention",
-  "regatta",
-  "fundraising",
-] as const satisfies readonly CampaignCategory[]
 export const CAMPAIGN_STATUSES = [
   "planned",
   "in_progress",

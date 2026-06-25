@@ -8,8 +8,9 @@ import { StatusMultiFilter } from "@/components/StatusMultiFilter"
 import { CategoryFilter } from "@/components/CategoryFilter"
 import { DemoDataPanel } from "@/components/DemoDataPanel"
 import { useCampaigns } from "@/lib/campaigns"
+import { useCategories, useCategoryMap } from "@/lib/categories"
 import { useUiStore } from "@/lib/uiStore"
-import { CAMPAIGN_CATEGORIES, CAMPAIGN_STATUSES } from "@/lib/database.types"
+import { CAMPAIGN_STATUSES } from "@/lib/database.types"
 
 // /campaigns — the campaign list, filtered by time range (overlap semantics)
 // and status, combined server-side. List only — the timeline lives on the
@@ -20,19 +21,30 @@ export function CampaignsPage() {
     setCampaignRange,
     campaignStatuses,
     toggleCampaignStatus,
-    campaignCategories,
-    toggleCampaignCategory,
+    hiddenListCategoryIds,
+    toggleListCategory,
   } = useUiStore()
+  const { data: categories = [] } = useCategories()
+  const categoryMap = useCategoryMap()
+  // Selected = categories not hidden. Pass the SERVER filter keyed off the hidden
+  // set: empty hidden → null (no constraint, correct even while categories load),
+  // else the visible ids (all hidden → [] → no rows). Never key off the visible
+  // list directly — it is briefly [] during load.
+  const selectedIds = categories
+    .filter((c) => !hiddenListCategoryIds.includes(c.id))
+    .map((c) => c.id)
+  const categoryFilter =
+    hiddenListCategoryIds.length === 0 ? null : selectedIds
   const {
     data: campaigns = [],
     isLoading,
     error,
-  } = useCampaigns(campaignRange, campaignStatuses, campaignCategories)
+  } = useCampaigns(campaignRange, campaignStatuses, categoryFilter)
 
   const filtered =
     campaignRange !== "all" ||
     campaignStatuses.length < CAMPAIGN_STATUSES.length ||
-    campaignCategories.length < CAMPAIGN_CATEGORIES.length
+    hiddenListCategoryIds.length > 0
 
   return (
     <div className="grid gap-4">
@@ -50,8 +62,9 @@ export function CampaignsPage() {
         onToggle={toggleCampaignStatus}
       />
       <CategoryFilter
-        value={campaignCategories}
-        onToggle={toggleCampaignCategory}
+        categories={categories}
+        value={selectedIds}
+        onToggle={toggleListCategory}
       />
 
       {error && (
@@ -79,8 +92,10 @@ export function CampaignsPage() {
             <div className="flex items-center gap-2">
               <span
                 className="size-2.5 shrink-0 rounded-full"
-                style={{ backgroundColor: `var(--cat-${c.category})` }}
-                title={c.category}
+                style={{
+                  backgroundColor: categoryMap.get(c.category_id)?.color,
+                }}
+                title={categoryMap.get(c.category_id)?.name}
               />
               <span className="truncate font-medium">{c.name}</span>
               <Badge variant="secondary" className="ml-auto shrink-0 capitalize">
