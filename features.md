@@ -10,7 +10,7 @@ Ship **50–80% of the features well enough to tell 100% of the story**. The sto
 
 Three tiers — **Implemented** (live in production), **High priority** (queued to build next), **Low priority** (deferred / parked / stretch) — plus a transient **Built, in review** holding area for code-complete work awaiting merge (it moves up to Implemented on deploy). Items carry their build state. Earlier this file tracked a numbered phase sequence; that history lives in git and the merged PRs.
 
-**Current state (2026-06-18):** the foundation, core UI, calendar, table view, filters, the **synthetic demo-data generator + purge** (#28), the **multi-select status filter on the campaigns list** (#30), and the **responsive (mobile) header** (#32) are all live in production; nothing is in review. The **High priority tier is empty** — only Low priority remains (templates, parked reminders, stretch UI), and none blocks the demo; the product tells the full story today.
+**Current state (2026-06-18):** the foundation, core UI, calendar, table view, filters, the **synthetic demo-data generator + purge** (#28), the **multi-select status filter on the campaigns list** (#30), and the **responsive (mobile) header** (#32) are all live in production; nothing is in review. **One high-priority item is now queued (not built):** user-managed campaign categories (CRUD). The Low-priority tier (templates, parked reminders, stretch UI) is unchanged and none of it blocks the demo; the product tells the full story today.
 
 ## Implemented (live in production)
 
@@ -34,7 +34,23 @@ _None right now._
 
 ## High priority
 
-_None right now._
+### Manage campaign categories (CRUD) — *not built*
+
+Today the four categories (recruiting / retention / regatta / fundraising) are a fixed Postgres **enum** (`campaign_category`, migration `0004`) with colors hard-coded as `--cat-*` CSS vars. The team wants to customize them: **create** a new category, **rename + recolor** an existing one, and **delete** an unused one. Because a column enum can't be safely renamed or removed (Postgres only lets you *append* enum values, and you can't drop a value a column still uses), real CRUD means moving categories from an enum to a **table** that campaigns reference, with the color stored per row.
+
+**Settled decisions** (owner, 2026-06-18):
+
+- **Delete is blocked while a category is in use** — you cannot delete a category any campaign references; reassign or remove those campaigns first (a friendly, fail-closed rule, modeled as FK `ON DELETE RESTRICT`).
+- **Management UI is a panel on the Campaigns page**, like the existing Demo data panel (`DemoDataPanel`) — no new route or nav item.
+- The four existing categories and their current colors are preserved, and every existing campaign keeps its category, through the migration.
+
+**Acceptance:** creating a category (name + color) makes it available in the campaign form, the calendar/list color-coding, and both category filters; renaming/recoloring is reflected everywhere; deleting an unused category works while deleting one in use is blocked with a clear message; the four originals + their colors + existing assignments survive the migration; RLS + grants present; `email_jobs` untouched; lint/typecheck/build green.
+
+> **Implementation considerations (not yet approved — planned separately).** These are candidate approaches to ground the build's own plan, not a signed-off spec:
+> - **Schema** (`000N_categories.sql`, schema-altering → needs the migration callout): a `categories` table (`name` unique, `color` text, RLS authenticated-all + explicit grants, never `anon`), seeded from the current four; `campaigns.category` enum → `category_id uuid references categories(id) on delete restrict`, backfilled by name, old column/index/enum dropped. Recreate the `update_campaign_clamp` RPC (`0005`) whose `p_category` is the enum.
+> - **Colors** move from the static `--cat-*` CSS vars to the per-row `color` (any CSS color string); the five inline `var(--cat-${category})` render sites read from a fetched `id→{name,color}` map.
+> - **Client:** a new `useCategories` data layer (+ create/update/delete) mirroring `campaigns.ts`; `CampaignCategory`/`CAMPAIGN_CATEGORIES` become dynamic; the campaign-list and calendar category filters shift from a static default list to selected IDs (re-derive the empty-vs-all logic from #30, don't copy it); rewire the campaign form, both filters, the table, the calendar, and `demoData.ts`.
+> - **Likely split into two PRs:** (a) migration + data layer + rewire, (b) the management UI. The static→dynamic filter-state change is the riskiest part.
 
 ## Low priority
 

@@ -10,7 +10,8 @@
 > actions run on Node 24 (PR #17) and the deploy is hardened against a flaky
 > Supabase-CLI lookup (PR #21). The **multi-select status filter on the campaigns
 > list** (PR #30) and the **responsive (mobile) header** (PR #32) are merged and
-> live; with them the **high-priority tier is empty** and nothing is mid-review.
+> live; nothing is mid-review. **One high-priority item is now queued (not built):**
+> user-managed campaign categories (CRUD) — see `features.md` → High priority and §2/§8.
 > The reminder path is **built but parked**; everything else outstanding is Low-priority.
 > Read `CLAUDE.md`, `roadmap.md`, `structure.md`, and `features.md` first — they are
 > current and authoritative. This file orients you and captures the operational/workflow
@@ -100,11 +101,17 @@ route around it.
 - Full spec, verification record, and the activation checklist: **`docs/archive/phase4-reminders.md`**.
 
 **Built, in review (not yet merged):**
-- **None right now** — no feature work is awaiting merge. (A chore PR may be in
-  flight bundling the brand-casing rename; see §3.)
+- **None right now** — no feature work is awaiting merge.
 
 **Queued, NOT built (high-priority backlog):**
-- **None** — the high-priority tier is empty.
+- **Manage campaign categories (CRUD)** — let the team create / rename+recolor /
+  delete campaign categories instead of the fixed four. Requires moving categories
+  from the `campaign_category` **enum** to a `categories` table (color per row,
+  replacing the static `--cat-*` CSS vars) and rewiring every consumer. Settled:
+  delete is **blocked while in use** (FK restrict); the UI is a **panel on the
+  Campaigns page** (like `DemoDataPanel`). Spec + (not-yet-approved) implementation
+  considerations in `features.md` → High priority; likely splits into a
+  migration+data-layer PR and a UI PR. **Not started.**
 
 **Low priority / deferred:** campaign templates, the parked reminders, and stretch UI
 (week view, text wrapping, drawer). The campaigns-tab category filter (PR #24), the
@@ -117,15 +124,14 @@ shipped and graduated off this list. See `features.md` → Low priority.
   intentionally; **currently CONFLICTING** with `main` (its `features.md` /
   `structure.md` edits are superseded by later docs). That's expected — leave it;
   when un-parking, rebase onto `main` and drop the stale doc edits.
-- **PR for the brand-casing rename** — `chore-norcal-rename`, open and awaiting the
-  owner's merge. Three brand string edits (header tagline, README title, §1 here)
-  **plus** docs housekeeping: it also graduates the responsive header (#32) to
-  Implemented and removes the now-shipped rename backlog item. Because it lands the
-  docs in their final state, no follow-up graduation PR is needed.
-- **Everything else is merged.** Recent: **#28 (synthetic demo data)**, #29 (docs:
-  backlog + HANDOFF refresh), **#30 (multi-select status filter)**, #31 (docs:
-  graduate #30), and **#32 (responsive mobile header — the feature)**. `main` tip is
-  `85c3849` (the #32 merge). Merged head branches are auto-deleted.
+- **Docs-only PR queuing the categories-CRUD spec** — `docs-categories-crud-backlog`,
+  open and awaiting the owner's merge. Adds the High-priority backlog entry to
+  `features.md` + this HANDOFF refresh; no code (same shape as #27, which queued the
+  demo-data spec). The build is a separate planned effort.
+- **Everything else is merged.** Recent: **#30 (multi-select status filter)**, #31
+  (docs: graduate #30), **#32 (responsive mobile header — the feature)**, and #33
+  (chore: `NorCal`→`Norcal` rename + graduate #32). `main` tip is `2da2826` (the #33
+  merge). Merged head branches are auto-deleted.
 
 ## 4. Data model & code map (detail in roadmap.md / structure.md)
 
@@ -241,9 +247,18 @@ shipped and graduated off this list. See `features.md` → Low priority.
 
 ## 8. Likely next task
 
-**The high-priority tier is empty** — the multi-select status filter (PR #30) and the
-responsive mobile header (PR #32) were the last two; see §2/§3. Next work comes from
-the Low-priority tier (`features.md` → Low priority):
+**Start with the one queued high-priority item** (`features.md` → High priority):
+- **Manage campaign categories (CRUD)** — replace the fixed four with user-managed
+  categories. The core lift is migrating categories off the `campaign_category`
+  **enum** into a `categories` table (color per row) and rewiring every consumer
+  (form, both filters, calendar, table, store, `demoData`). Settled: delete blocked
+  while in use (FK restrict); UI = a Campaigns-page panel. The implementation
+  considerations in `features.md` are **not yet approved** — give it its own plan +
+  owner sign-off, and expect to split it (migration+data-layer, then UI). The
+  migration alters a column and recreates the `update_campaign_clamp` RPC, so it
+  needs the migration callout.
+
+Then the Low-priority tier (`features.md` → Low priority):
 - **Campaign templates** — needs a `00xx_templates.sql` (`templates` +
   `template_deliverables` with start/end day-offsets) + a "create from template"
   flow; the start/end date model it depends on is live. The largest remaining item.
