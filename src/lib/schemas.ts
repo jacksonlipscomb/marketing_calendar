@@ -2,8 +2,18 @@ import { z } from "zod"
 import { CAMPAIGN_STATUSES, DELIVERABLE_STATUSES } from "./database.types"
 
 // Hex color string (#rrggbb) — matches the `categories.color` DB check (0007) and
-// the value an <input type="color"> produces. Shared by the category form (PR B).
+// the value an <input type="color"> produces. Shared by the category form.
 export const HEX_COLOR_RE = /^#[0-9a-f]{6}$/i
+
+// Category create/edit form (the manager panel). Mirrors the DB constraints in
+// 0007 so the user sees a field message before the insert/update round-trips:
+// non-empty trimmed name, hex color. Case-insensitive name uniqueness is enforced
+// by the DB only (surfaced as a friendly 23505 message in the hook).
+export const categoryFormSchema = z.object({
+  name: z.string().trim().min(1, "Name is required"),
+  color: z.string().regex(HEX_COLOR_RE, "Pick a color"),
+})
+export type CategoryFormValues = z.infer<typeof categoryFormSchema>
 
 // Campaign create/edit form. Direct, RLS-governed writes to `campaigns`.
 // Dates are yyyy-mm-dd strings from <input type="date">; the same inclusive

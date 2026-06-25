@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { RangeFilter } from "@/components/RangeFilter"
 import { StatusMultiFilter } from "@/components/StatusMultiFilter"
 import { CategoryFilter } from "@/components/CategoryFilter"
+import { CategoryManagerPanel } from "@/components/CategoryManagerPanel"
 import { DemoDataPanel } from "@/components/DemoDataPanel"
 import { useCampaigns } from "@/lib/campaigns"
 import { useCategories, useCategoryMap } from "@/lib/categories"
@@ -26,15 +27,18 @@ export function CampaignsPage() {
   } = useUiStore()
   const { data: categories = [] } = useCategories()
   const categoryMap = useCategoryMap()
-  // Selected = categories not hidden. Pass the SERVER filter keyed off the hidden
-  // set: empty hidden → null (no constraint, correct even while categories load),
-  // else the visible ids (all hidden → [] → no rows). Never key off the visible
-  // list directly — it is briefly [] during load.
   const selectedIds = categories
     .filter((c) => !hiddenListCategoryIds.includes(c.id))
     .map((c) => c.id)
-  const categoryFilter =
-    hiddenListCategoryIds.length === 0 ? null : selectedIds
+  // Filter only when a CURRENT category is hidden. Keying off the raw hidden set
+  // would treat the list as filtered when it only holds ids of deleted categories
+  // (the store isn't pruned on delete) — none of whose chips are even shown. When
+  // nothing current is hidden → null = no constraint (also correct while the
+  // category list is still loading). All current hidden → selectedIds is [] → no rows.
+  const anyCurrentHidden = categories.some((c) =>
+    hiddenListCategoryIds.includes(c.id),
+  )
+  const categoryFilter = anyCurrentHidden ? selectedIds : null
   const {
     data: campaigns = [],
     isLoading,
@@ -44,7 +48,7 @@ export function CampaignsPage() {
   const filtered =
     campaignRange !== "all" ||
     campaignStatuses.length < CAMPAIGN_STATUSES.length ||
-    hiddenListCategoryIds.length > 0
+    anyCurrentHidden
 
   return (
     <div className="grid gap-4">
@@ -112,6 +116,7 @@ export function CampaignsPage() {
         ))}
       </div>
 
+      <CategoryManagerPanel />
       <DemoDataPanel />
     </div>
   )

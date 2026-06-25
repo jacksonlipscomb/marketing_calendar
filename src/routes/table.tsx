@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Link } from "@tanstack/react-router"
 import { format } from "date-fns"
 import {
@@ -154,6 +154,15 @@ export function TablePage() {
   const [deliverableStatus, setDeliverableStatus] = useState<
     DeliverableStatus | "all"
   >("all")
+
+  // The category filter is name-based, so a rename (or delete) elsewhere can leave
+  // a selected name that no longer exists — which would silently match no rows.
+  // Reset to "all" when the selected category is gone from the current set.
+  useEffect(() => {
+    if (category !== "all" && !categories.some((c) => c.name === category)) {
+      setCategory("all")
+    }
+  }, [categories, category])
 
   // The enum chips drive column-equals filters (no per-column header inputs).
   const columnFilters = useMemo<ColumnFiltersState>(() => {
