@@ -10,7 +10,7 @@ Ship **50–80% of the features well enough to tell 100% of the story**. The sto
 
 Three tiers — **Implemented** (live in production), **High priority** (queued to build next), **Low priority** (deferred / parked / stretch) — plus a transient **Built, in review** holding area for code-complete work awaiting merge (it moves up to Implemented on deploy). Items carry their build state. Earlier this file tracked a numbered phase sequence; that history lives in git and the merged PRs.
 
-**Current state (2026-06-18):** the foundation, core UI, calendar, table view, filters, the **synthetic demo-data generator + purge** (#28), the **multi-select status filter on the campaigns list** (#30), and the **responsive (mobile) header** (#32) are all live in production; nothing is in review. **One high-priority item is now queued (not built):** user-managed campaign categories (CRUD). The Low-priority tier (templates, parked reminders, stretch UI) is unchanged and none of it blocks the demo; the product tells the full story today.
+**Current state (2026-06-25):** the foundation, core UI, calendar, table view, filters, the **synthetic demo-data generator + purge** (#28), the **multi-select status filter on the campaigns list** (#30), and the **responsive (mobile) header** (#32) are all live in production; nothing is in review. **One high-priority item is now queued (not built):** user-managed campaign categories (CRUD). The Low-priority tier (templates, parked reminders, stretch UI) is unchanged and none of it blocks the demo; the product tells the full story today.
 
 ## Implemented (live in production)
 
@@ -38,7 +38,7 @@ _None right now._
 
 Today the four categories (recruiting / retention / regatta / fundraising) are a fixed Postgres **enum** (`campaign_category`, migration `0004`) with colors hard-coded as `--cat-*` CSS vars. The team wants to customize them: **create** a new category, **rename + recolor** an existing one, and **delete** an unused one. Because a column enum can't be safely renamed or removed (Postgres only lets you *append* enum values, and you can't drop a value a column still uses), real CRUD means moving categories from an enum to a **table** that campaigns reference, with the color stored per row.
 
-**Settled decisions** (owner, 2026-06-18):
+**Settled decisions** (owner, 2026-06-25):
 
 - **Delete is blocked while a category is in use** — you cannot delete a category any campaign references; reassign or remove those campaigns first (a friendly, fail-closed rule, modeled as FK `ON DELETE RESTRICT`).
 - **Management UI is a panel on the Campaigns page**, like the existing Demo data panel (`DemoDataPanel`) — no new route or nav item.

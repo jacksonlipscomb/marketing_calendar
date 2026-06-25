@@ -1,6 +1,6 @@
 # Handoff — Marketing Calendar (campaign/deliverable build)
 
-> **Current as of 2026-06-18.** The original events-based PoC was replaced by a
+> **Current as of 2026-06-25.** The original events-based PoC was replaced by a
 > campaign/deliverable rewrite. **Everything through the synthetic demo-data
 > generator is shipped and live in production:** foundation, core UI, calendar bars,
 > deliverable deep linking (PR #15), navigation affordances (PR #16), deliverable
@@ -124,14 +124,12 @@ shipped and graduated off this list. See `features.md` → Low priority.
   intentionally; **currently CONFLICTING** with `main` (its `features.md` /
   `structure.md` edits are superseded by later docs). That's expected — leave it;
   when un-parking, rebase onto `main` and drop the stale doc edits.
-- **Docs-only PR queuing the categories-CRUD spec** — `docs-categories-crud-backlog`,
-  open and awaiting the owner's merge. Adds the High-priority backlog entry to
-  `features.md` + this HANDOFF refresh; no code (same shape as #27, which queued the
-  demo-data spec). The build is a separate planned effort.
+- **No feature branches open.** PR #11 above is the only intentionally-open PR.
 - **Everything else is merged.** Recent: **#30 (multi-select status filter)**, #31
-  (docs: graduate #30), **#32 (responsive mobile header — the feature)**, and #33
-  (chore: `NorCal`→`Norcal` rename + graduate #32). `main` tip is `2da2826` (the #33
-  merge). Merged head branches are auto-deleted.
+  (docs: graduate #30), **#32 (responsive mobile header — the feature)**, #33
+  (chore: `NorCal`→`Norcal` rename + graduate #32), and **#34 (docs: queued the
+  categories-CRUD high-priority spec — no code, same shape as #27)**. Merged head
+  branches are auto-deleted.
 
 ## 4. Data model & code map (detail in roadmap.md / structure.md)
 
