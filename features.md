@@ -10,7 +10,7 @@ Ship **50–80% of the features well enough to tell 100% of the story**. The sto
 
 Three tiers — **Implemented** (live in production), **High priority** (queued to build next), **Low priority** (deferred / parked / stretch) — plus a transient **Built, in review** holding area for code-complete work awaiting merge (it moves up to Implemented on deploy). Items carry their build state. Earlier this file tracked a numbered phase sequence; that history lives in git and the merged PRs.
 
-**Current state (2026-06-25):** the foundation, core UI, calendar, table view, filters, the **synthetic demo-data generator + purge** (#28), the **multi-select status filter on the campaigns list** (#30), and the **responsive (mobile) header** (#32) are all live in production. **User-managed campaign categories (CRUD) is built as two PRs:** PR A — the `enum → categories` table migration + data layer + rewire (#35) — is **merged and live**; PR B — the management panel UI — is **built and in review**. With PR B the **High-priority tier is empty**. The Low-priority tier (templates, parked reminders, stretch UI) is unchanged and none of it blocks the demo; the product tells the full story today.
+**Current state (2026-06-25):** the foundation, core UI, calendar, table view, filters, the **synthetic demo-data generator + purge** (#28), the **multi-select status filter on the campaigns list** (#30), the **responsive (mobile) header** (#32), and **user-managed campaign categories (CRUD)** (#35 + #36) are all live in production; nothing is in review. The **High-priority tier is empty** — only Low priority remains (templates, parked reminders, stretch UI), none of which blocks the demo; the product tells the full story today.
 
 ## Implemented (live in production)
 
@@ -27,16 +27,11 @@ Shipped via merge to `main` — one line each; full detail, verification, and de
 - **Synthetic demo data** (#28) — a "Demo data" panel on the Campaigns page: **Generate** fills a demo year (12 campaigns across all four categories, 28 deliverables, overlapping spans) tagged `campaigns.is_seed`; **Purge** removes only the seed via the campaign delete cascade. Migration `0006_seed_flag.sql` (additive `is_seed` flag + partial index); generation writes campaigns/deliverables only — no `email_jobs`. Idempotent regenerate.
 - **Multi-select status filter on the campaigns list** (#30) — the list's Status filter is multi-select, mirroring the campaigns-tab category multi-select (#24): uiStore `campaignStatuses[]` + `toggleCampaignStatus`, a presentational `StatusMultiFilter`, and `useCampaigns` `.in("status", …)` folded into the queryKey; an empty status *or* category set short-circuits to no rows. List-scoped — the deliverable list and table chips stay single-select.
 - **Responsive header for mobile** (#32) — the header (`src/routes/__root.tsx`) stacks the brand over the nav below `sm` (`flex-col items-start gap-3`) and restores the single row at `sm`+ (`sm:flex-row sm:items-center sm:justify-between sm:gap-0`), with `flex-wrap` on the nav. Tailwind-only; desktop unchanged at 1280px.
+- **User-managed campaign categories (CRUD)** (#35 + #36) — categories moved from the `campaign_category` **enum** to a `categories` table (migration `0007`: per-row color, RLS + grants, FK `category_id` `ON DELETE RESTRICT`, `update_campaign_clamp` recreated; #35), and a **`CategoryManagerPanel`** on the Campaigns page to **create / rename + recolor / delete** them (#36). Colors render from `category.color`; the calendar + list category filters use a hidden-set store model; delete is blocked while a category is in use; the campaign form and `/table` filter read categories dynamically. New `src/lib/categories.ts` data layer.
 
 ## Built, in review (not yet merged)
 
-### Manage campaign categories (CRUD) — management panel (PR B of 2) — *built, in review*
-
-Completes user-managed categories. PR A (#35, **merged & live**) moved categories off the `campaign_category` enum onto a `categories` table + rewired every consumer (no user-visible change). PR B adds the user-facing management: a **`CategoryManagerPanel` on the Campaigns page** (like `DemoDataPanel`) to **create / rename + recolor / delete** categories, reusing PR A's `useCreateCategory` / `useUpdateCategory` / `useDeleteCategory` / `useCategoryUsageCounts` hooks and `ConfirmDeleteButton`. Per-row color `<input type="color">`; a `categoryFormSchema` mirrors the DB checks (non-empty name, hex color); delete is **blocked while in use** (the panel disables it via the usage count, with the friendly `23503` message as backstop), and `23505` surfaces as "name already exists". Client-only, no migration.
-
-Also two follow-ups the dynamic-categories model needs: the campaigns list now treats the category filter as active only when a **current** category is hidden (so a deleted-but-still-hidden id can't leave the list stuck-filtered), and the `/table` name-based category filter **resets to All** when the selected category name no longer exists (rename/delete).
-
-Verified: lint/typecheck/build green; local-stack Playwright 15/15 (create/rename/recolor/delete, delete-in-use disabled, chips + form select reflect changes, both follow-ups). **On merge, the categories feature (PR A + PR B) graduates to Implemented.**
+_None right now._
 
 ## High priority
 
