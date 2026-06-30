@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils"
+import { readableTextColor } from "@/lib/contrast"
 import type { CategoryRow } from "@/lib/database.types"
 
 // Presentational campaign-category toggle filter. Controlled by the caller so the
@@ -31,10 +32,17 @@ export function CategoryFilter({
             className={cn(
               "rounded-full border px-3 py-1 text-xs font-medium capitalize transition-colors",
               active
-                ? "border-transparent text-white"
+                ? "border-transparent"
                 : "bg-background text-muted-foreground hover:bg-accent",
             )}
-            style={active ? { backgroundColor: category.color } : undefined}
+            style={
+              active
+                ? {
+                    backgroundColor: category.color,
+                    color: readableTextColor(category.color),
+                  }
+                : undefined
+            }
           >
             {category.name}
           </button>

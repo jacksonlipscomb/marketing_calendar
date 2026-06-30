@@ -11,6 +11,7 @@ import { Mail } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { readableTextColor } from "@/lib/contrast"
 import { useUiStore } from "@/lib/uiStore"
 import { useCampaignsInRange } from "@/lib/campaigns"
 import { useCategoryMap } from "@/lib/categories"
@@ -247,88 +248,101 @@ export function CalendarMonth() {
               </div>
 
               {/* Campaign bars — filled pills, top band. */}
-              {campaignSegs.map((seg) => (
-                <div
-                  key={seg.item.id}
-                  role="button"
-                  tabIndex={0}
-                  data-testid={`campaign-bar-${seg.item.id}`}
-                  aria-label={`${seg.item.name}, ${seg.item.start_date} to ${seg.item.end_date}`}
-                  onClick={() => openCampaign(seg.item.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault() // Space must not scroll the page
-                      openCampaign(seg.item.id)
-                    }
-                  }}
-                  className={cn(
-                    "absolute z-10 flex cursor-pointer items-center rounded-full px-2 text-xs text-white hover:opacity-90",
-                    seg.clippedStart && "rounded-l-none",
-                    seg.clippedEnd && "rounded-r-none",
-                  )}
-                  style={{
-                    top: BAND_TOP + seg.lane * LANE_H,
-                    height: BAR_H,
-                    ...segmentStyle(seg.startCol, seg.endCol),
-                    backgroundColor:
-                      categoryMap.get(seg.item.category_id)?.color ??
-                      FALLBACK_CAT_COLOR,
-                  }}
-                  title={`${seg.item.name} · ${categoryMap.get(seg.item.category_id)?.name ?? "—"} · ${seg.item.start_date} → ${seg.item.end_date}`}
-                >
-                  <span className="truncate">{seg.item.name}</span>
-                </div>
-              ))}
+              {campaignSegs.map((seg) => {
+                const fill =
+                  categoryMap.get(seg.item.category_id)?.color ??
+                  FALLBACK_CAT_COLOR
+                return (
+                  <div
+                    key={seg.item.id}
+                    role="button"
+                    tabIndex={0}
+                    data-testid={`campaign-bar-${seg.item.id}`}
+                    aria-label={`${seg.item.name}, ${seg.item.start_date} to ${seg.item.end_date}`}
+                    onClick={() => openCampaign(seg.item.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault() // Space must not scroll the page
+                        openCampaign(seg.item.id)
+                      }
+                    }}
+                    className={cn(
+                      "absolute z-10 flex cursor-pointer items-center rounded-full px-2 text-xs hover:opacity-90",
+                      seg.clippedStart && "rounded-l-none",
+                      seg.clippedEnd && "rounded-r-none",
+                    )}
+                    style={{
+                      top: BAND_TOP + seg.lane * LANE_H,
+                      height: BAR_H,
+                      ...segmentStyle(seg.startCol, seg.endCol),
+                      backgroundColor: fill,
+                      color: readableTextColor(fill),
+                    }}
+                    title={`${seg.item.name} · ${categoryMap.get(seg.item.category_id)?.name ?? "—"} · ${seg.item.start_date} → ${seg.item.end_date}`}
+                  >
+                    <span className="truncate">{seg.item.name}</span>
+                  </div>
+                )
+              })}
 
               {/* Deliverable bars — thinner, square-cornered bars in the band
                   below the campaigns; deep-link to the deliverable, with the
                   schedule-email quick action inline. */}
-              {delivSegs.map((seg) => (
-                <div
-                  key={seg.item.id}
-                  role="button"
-                  tabIndex={0}
-                  data-testid={`deliverable-bar-${seg.item.id}`}
-                  aria-label={`${seg.item.title}, ${seg.item.start_date} to ${seg.item.end_date}`}
-                  onClick={() => openDeliverable(seg.item.campaign_id, seg.item.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault() // Space must not scroll the page
+              {delivSegs.map((seg) => {
+                const fill =
+                  categoryMap.get(seg.item.campaigns?.category_id ?? "")
+                    ?.color ?? FALLBACK_CAT_COLOR
+                return (
+                  <div
+                    key={seg.item.id}
+                    role="button"
+                    tabIndex={0}
+                    data-testid={`deliverable-bar-${seg.item.id}`}
+                    aria-label={`${seg.item.title}, ${seg.item.start_date} to ${seg.item.end_date}`}
+                    onClick={() =>
                       openDeliverable(seg.item.campaign_id, seg.item.id)
                     }
-                  }}
-                  className={cn(
-                    "absolute z-10 flex cursor-pointer items-center gap-1 rounded-sm px-1.5 text-[11px] text-white ring-1 ring-white/40 ring-inset hover:opacity-90",
-                    seg.clippedStart && "rounded-l-none",
-                    seg.clippedEnd && "rounded-r-none",
-                  )}
-                  style={{
-                    top: delivBandTop + seg.lane * DELIV_LANE_H,
-                    height: DELIV_BAR_H,
-                    ...segmentStyle(seg.startCol, seg.endCol),
-                    backgroundColor:
-                      categoryMap.get(seg.item.campaigns?.category_id ?? "")
-                        ?.color ?? FALLBACK_CAT_COLOR,
-                  }}
-                  title={`${seg.item.title} · ${seg.item.campaigns?.name ?? "campaign"} · ${seg.item.start_date} → ${seg.item.end_date}`}
-                >
-                  <span className="min-w-0 flex-1 truncate">
-                    {seg.item.title}
-                  </span>
-                  <button
-                    type="button"
-                    aria-label="Schedule email"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      openScheduleEmail({ id: seg.item.id, title: seg.item.title })
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault() // Space must not scroll the page
+                        openDeliverable(seg.item.campaign_id, seg.item.id)
+                      }
                     }}
-                    onKeyDown={(e) => e.stopPropagation()}
-                    className="shrink-0 opacity-80 hover:opacity-100"
+                    className={cn(
+                      "absolute z-10 flex cursor-pointer items-center gap-1 rounded-sm px-1.5 text-[11px] ring-1 ring-white/40 ring-inset hover:opacity-90",
+                      seg.clippedStart && "rounded-l-none",
+                      seg.clippedEnd && "rounded-r-none",
+                    )}
+                    style={{
+                      top: delivBandTop + seg.lane * DELIV_LANE_H,
+                      height: DELIV_BAR_H,
+                      ...segmentStyle(seg.startCol, seg.endCol),
+                      backgroundColor: fill,
+                      color: readableTextColor(fill),
+                    }}
+                    title={`${seg.item.title} · ${seg.item.campaigns?.name ?? "campaign"} · ${seg.item.start_date} → ${seg.item.end_date}`}
                   >
-                    <Mail className="size-3" />
-                  </button>
-                </div>
-              ))}
+                    <span className="min-w-0 flex-1 truncate">
+                      {seg.item.title}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label="Schedule email"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openScheduleEmail({
+                          id: seg.item.id,
+                          title: seg.item.title,
+                        })
+                      }}
+                      onKeyDown={(e) => e.stopPropagation()}
+                      className="shrink-0 opacity-80 hover:opacity-100"
+                    >
+                      <Mail className="size-3" />
+                    </button>
+                  </div>
+                )
+              })}
             </div>
           )
         })}

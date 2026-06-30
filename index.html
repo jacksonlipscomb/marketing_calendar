@@ -1,10 +1,35 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <script>
+      // No-FOUC theme boot: the persisted choice must be applied to <html> before
+      // React (and first paint). The default is dark — the `dark` class is already
+      // on <html> above — so we only need to *remove* it when the user chose light.
+      // Wrapped in try/catch: blocked storage, a sandboxed/embedded context, or a
+      // parse error must fall back to the default dark, never break boot.
+      try {
+        if (localStorage.theme === "light") {
+          document.documentElement.classList.remove("dark");
+        }
+      } catch (e) {
+        /* keep the default dark class */
+      }
+    </script>
+    <link rel="icon" type="image/png" href="/norcal-logo-gold.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>vite-scaffold</title>
+    <title>Norcal Crew · Marketing Calendar</title>
+    <!-- Brand fonts. Quicksand (display/headings) + Open Sans (body). Weights match
+         exactly what the app's Tailwind classes request (font-medium 500,
+         font-semibold 600, plus 400 default and 700 headroom) so the browser never
+         synthesizes a faux weight. JetBrains Mono is intentionally NOT loaded — it
+         lives only in the unrouted docs/design-system.tsx reference. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600&family=Quicksand:wght@400;500;600;700&display=swap"
+    />
   </head>
   <body>
     <div id="root"></div>

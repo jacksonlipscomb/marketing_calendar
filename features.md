@@ -10,7 +10,7 @@ Ship **50–80% of the features well enough to tell 100% of the story**. The sto
 
 Three tiers — **Implemented** (live in production), **High priority** (queued to build next), **Low priority** (deferred / parked / stretch) — plus a transient **Built, in review** holding area for code-complete work awaiting merge (it moves up to Implemented on deploy). Items carry their build state. Earlier this file tracked a numbered phase sequence; that history lives in git and the merged PRs.
 
-**Current state (2026-06-25):** the foundation, core UI, calendar, table view, filters, the **synthetic demo-data generator + purge** (#28), the **multi-select status filter on the campaigns list** (#30), the **responsive (mobile) header** (#32), and **user-managed campaign categories (CRUD)** (#35 + #36) are all live in production; nothing is in review. The **High-priority tier is empty** — only Low priority remains (templates, parked reminders, stretch UI), none of which blocks the demo; the product tells the full story today.
+**Current state (2026-06-30):** the foundation, core UI, calendar, table view, filters, the **synthetic demo-data generator + purge** (#28), the **multi-select status filter on the campaigns list** (#30), the **responsive (mobile) header** (#32), and **user-managed campaign categories (CRUD)** (#35 + #36) are all live in production. A **cosmetic brand restyle** (Norcal Crew design system — black/gold canvas, Quicksand + Open Sans, logo, theme toggle) is **built and in review** (#38) — see "Built, in review" below. The **High-priority tier is empty** — only Low priority remains (templates, parked reminders, stretch UI), none of which blocks the demo; the product tells the full story today.
 
 ## Implemented (live in production)
 
@@ -31,7 +31,11 @@ Shipped via merge to `main` — one line each; full detail, verification, and de
 
 ## Built, in review (not yet merged)
 
-_None right now._
+### Brand cosmetic restyle — Norcal Crew design system — *built, in review*
+
+Purely cosmetic rebrand so the app looks like part of norcalcrew.org: **black canvas + single gold accent (`#F0B400`)**, **Quicksand** display + **Open Sans** body, the gold bear logo in the header, and a fixed favicon/title (was `vite-scaffold` + placeholder favicon). Because shadcn here is fully token-driven, the re-skin is a `src/index.css` color-token rewrite (`:root` brand-light + `.dark` black canvas) plus font wiring in `index.html` + the `@theme` block — almost no per-component edits; every page heading adopts Quicksand via one base-layer rule. Adds a **header theme toggle** (default dark, persisted to `localStorage`, applied pre-paint by a try/catch inline boot script so there's no flash) and a `readableTextColor` WCAG-luminance helper so text on category fills (filter chips + calendar campaign/deliverable bars) picks black/white per fill instead of a hard-coded `text-white`. The brand design system ships as **unrouted reference** at `docs/design-system.tsx` (ESLint-ignored, outside `tsconfig`; no route, no nav link). Logo (light-mode "reverse on white" via `brightness-0 dark:brightness-100`) + assets + client only, no migration.
+
+Verified: lint/typecheck/build green; Playwright screenshot matrix across dark/light × desktop (1280px)/mobile (375px) — header (logo + toggle, no overflow), calendar bars, `/table`, and filter-chip contrast. **On merge, graduates to Implemented.**
 
 ## High priority
 
