@@ -9,12 +9,11 @@
 > deliverable option (PR #23) and the campaigns-tab category filter (PR #24). CI/Deploy
 > actions run on Node 24 (PR #17) and the deploy is hardened against a flaky
 > Supabase-CLI lookup (PR #21). The **multi-select status filter on the campaigns
-> list** (PR #30) and the **responsive (mobile) header** (PR #32) are merged and
-> live. **User-managed campaign categories (CRUD), as two PRs:** PR A (the
-> `enum → categories` table migration + data-layer + rewire, #35) is **merged and
-> live**; PR B (the management-panel UI) is **built and in review** — with it the
-> **high-priority tier is empty**. See `features.md` and §2/§3/§8. The reminder path
-> is **built but parked**; everything else outstanding is Low-priority.
+> list** (PR #30), the **responsive (mobile) header** (PR #32), and **user-managed
+> campaign categories (CRUD)** — the `enum → categories` table migration + data-layer
+> + rewire (#35) and the management panel (#36) — are all merged and live. The
+> **high-priority tier is empty** and nothing is mid-review. The reminder path is
+> **built but parked**; everything else outstanding is Low-priority.
 > Read `CLAUDE.md`, `roadmap.md`, `structure.md`, and `features.md` first — they are
 > current and authoritative. This file orients you and captures the operational/workflow
 > knowledge those docs don't.
@@ -95,6 +94,15 @@ route around it.
   single row at `sm`+ (`sm:flex-row sm:items-center sm:justify-between sm:gap-0`),
   with `flex-wrap` on `<nav>`. Tailwind-only, no new component/state; desktop
   unchanged at 1280px.
+- **User-managed campaign categories (CRUD)** (PR #35 + #36) — categories moved from
+  the `campaign_category` **enum** to a `categories` table (migration `0007`: per-row
+  color, RLS + grants, `campaigns.category_id` FK `ON DELETE RESTRICT`,
+  `update_campaign_clamp` recreated; #35) + a **`CategoryManagerPanel`** on the
+  Campaigns page to create / rename+recolor / delete (#36). New `src/lib/categories.ts`
+  data layer; colors render from `category.color` (the `--cat-*` CSS vars are gone);
+  the calendar + list category filters use a **hidden-set** `uiStore` model;
+  `useCampaigns` takes `categoryFilter: string[] | null`; delete is blocked while a
+  category is in use (FK restrict). Verified on the local stack (migration + Playwright).
 
 **Built but PARKED — not in production (`send-reminders`, PR #11 open):**
 - The scheduled reminder edge function is written, locally verified, review-
@@ -103,18 +111,10 @@ route around it.
 - Full spec, verification record, and the activation checklist: **`docs/archive/phase4-reminders.md`**.
 
 **Built, in review (not yet merged):**
-- **Manage campaign categories — management panel (PR B of 2)** — `CategoryManagerPanel`
-  on the Campaigns page (create / rename+recolor / delete), reusing PR A's category
-  hooks + `ConfirmDeleteButton`; per-row color `<input type=color>`, `categoryFormSchema`
-  mirroring the DB checks, delete disabled while in use (usage count; `23503`/`23505`
-  surfaced as friendly copy). Plus two follow-ups the dynamic model needs: the campaigns
-  list filters only when a **current** category is hidden (a deleted-but-hidden id can't
-  leave it stuck-filtered), and the `/table` name-based category filter **resets to All**
-  when the selected name no longer exists. Client-only. Local-stack Playwright 15/15.
-  PR A (#35) is merged & live; **on PR B merge the whole feature graduates to Implemented.**
+- **None right now** — no feature work is awaiting merge.
 
 **Queued, NOT built (high-priority backlog):**
-- **None** — the high-priority tier is empty (categories CRUD is PR B, in review above).
+- **None** — the high-priority tier is empty.
 
 **Low priority / deferred:** campaign templates, the parked reminders, and stretch UI
 (week view, text wrapping, drawer). The campaigns-tab category filter (PR #24), the
@@ -127,14 +127,12 @@ shipped and graduated off this list. See `features.md` → Low priority.
   intentionally; **currently CONFLICTING** with `main` (its `features.md` /
   `structure.md` edits are superseded by later docs). That's expected — leave it;
   when un-parking, rebase onto `main` and drop the stale doc edits.
-- **PR B — `feat-categories-manager`** (the category management panel +
-  list/table filter follow-ups), open and awaiting the owner's merge. Client-only,
-  no migration. On merge, a docs-only PR graduates the categories feature (PR A + B)
-  to Implemented.
-- **Everything else is merged.** Recent: #32 (responsive mobile header), #33
-  (`NorCal`→`Norcal` rename + graduate #32), #34 (docs: queued categories spec), and
-  **#35 (categories `enum → table` migration + rewire — PR A, carried migration `0007`)**.
-  Merged head branches are auto-deleted.
+- **No feature branches open.** PR #11 above is the only intentionally-open PR.
+- **Everything else is merged.** Recent: #33 (`NorCal`→`Norcal` rename + graduate #32),
+  #34 (docs: queued categories spec), **#35 (categories `enum → table` migration +
+  rewire — PR A, carried migration `0007`)**, **#36 (category management panel — PR B)**,
+  and this docs-only graduation of the categories feature to Implemented. Merged head
+  branches are auto-deleted.
 
 ## 4. Data model & code map (detail in roadmap.md / structure.md)
 
@@ -256,11 +254,9 @@ shipped and graduated off this list. See `features.md` → Low priority.
 
 ## 8. Likely next task
 
-**First: graduate the categories feature to Implemented** once PR B
-(`feat-categories-manager`) merges — a docs-only PR moving PR A (#35) + PR B from
-"Built, in review" to Implemented in `features.md` and refreshing this file (the
-#30 → #31 two-step). After that, **the high-priority tier is empty** — next work is
-the Low-priority tier (`features.md` → Low priority):
+**The high-priority tier is empty** — user-managed categories (#35 + #36) shipped and
+graduated to Implemented. Next work is the Low-priority tier (`features.md` → Low
+priority):
 - **Campaign templates** — needs a `00xx_templates.sql` (`templates` +
   `template_deliverables` with start/end day-offsets) + a "create from template"
   flow; the start/end date model it depends on is live. The largest remaining item.
