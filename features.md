@@ -10,7 +10,7 @@ Ship **50–80% of the features well enough to tell 100% of the story**. The sto
 
 Three tiers — **Implemented** (live in production), **High priority** (queued to build next), **Low priority** (deferred / parked / stretch) — plus a transient **Built, in review** holding area for code-complete work awaiting merge (it moves up to Implemented on deploy). Items carry their build state. Earlier this file tracked a numbered phase sequence; that history lives in git and the merged PRs.
 
-**Current state (2026-06-25):** the foundation, core UI, calendar, table view, filters, the **synthetic demo-data generator + purge** (#28), the **multi-select status filter on the campaigns list** (#30), and the **responsive (mobile) header** (#32) are all live in production. **User-managed campaign categories (CRUD) is built as two PRs:** PR A — the `enum → categories` table migration + data layer + rewire (#35) — is **merged and live**; PR B — the management panel UI — is **built and in review**. With PR B the **High-priority tier is empty**. The Low-priority tier (templates, parked reminders, stretch UI) is unchanged and none of it blocks the demo; the product tells the full story today.
+**Current state (2026-06-25):** the foundation, core UI, calendar, table view, filters, the **synthetic demo-data generator + purge** (#28), the **multi-select status filter on the campaigns list** (#30), and the **responsive (mobile) header** (#32) are all live in production. **User-managed campaign categories (CRUD) is built as two PRs:** PR A — the `enum → categories` table migration + data layer + rewire (#35) — is **merged and live**; PR B — the management panel UI — is **built and in review**. With PR B the **High-priority tier is empty**. The Low-priority tier (templates, parked reminders, stretch UI) is unchanged and none of it blocks the demo; the product tells the full story today. **(2026-06-30)** A **cosmetic brand restyle** (Norcal Crew design system — black/gold canvas, Quicksand + Open Sans, logo, theme toggle) is also **built and in review** — see "Built, in review" below.
 
 ## Implemented (live in production)
 
@@ -37,6 +37,12 @@ Completes user-managed categories. PR A (#35, **merged & live**) moved categorie
 Also two follow-ups the dynamic-categories model needs: the campaigns list now treats the category filter as active only when a **current** category is hidden (so a deleted-but-still-hidden id can't leave the list stuck-filtered), and the `/table` name-based category filter **resets to All** when the selected category name no longer exists (rename/delete).
 
 Verified: lint/typecheck/build green; local-stack Playwright 15/15 (create/rename/recolor/delete, delete-in-use disabled, chips + form select reflect changes, both follow-ups). **On merge, the categories feature (PR A + PR B) graduates to Implemented.**
+
+### Brand cosmetic restyle — Norcal Crew design system — *built, in review*
+
+Purely cosmetic rebrand so the app looks like part of norcalcrew.org: **black canvas + single gold accent (`#F0B400`)**, **Quicksand** display + **Open Sans** body, the gold bear logo in the header, and a fixed favicon/title (was `vite-scaffold` + placeholder favicon). Because shadcn here is fully token-driven, the re-skin is a `src/index.css` color-token rewrite (`:root` brand-light + `.dark` black canvas) plus font wiring in `index.html` + the `@theme` block — almost no per-component edits; every page heading adopts Quicksand via one base-layer rule. Adds a **header theme toggle** (default dark, persisted to `localStorage`, applied pre-paint by a try/catch inline boot script so there's no flash) and a `readableTextColor` WCAG-luminance helper so text on category fills (filter chips + calendar campaign/deliverable bars) picks black/white per fill instead of a hard-coded `text-white`. The brand design system ships as **unrouted reference** at `docs/design-system.tsx` (ESLint-ignored, outside `tsconfig`; no route, no nav link). Logo (light-mode "reverse on white" via `brightness-0 dark:brightness-100`) + assets + client only, no migration.
+
+Verified: lint/typecheck/build green; Playwright screenshot matrix across dark/light × desktop (1280px)/mobile (375px) — header (logo + toggle, no overflow), calendar bars, `/table`, and filter-chip contrast. **On merge, graduates to Implemented.**
 
 ## High priority
 

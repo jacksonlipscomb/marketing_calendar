@@ -13,7 +13,10 @@
 > live. **User-managed campaign categories (CRUD), as two PRs:** PR A (the
 > `enum → categories` table migration + data-layer + rewire, #35) is **merged and
 > live**; PR B (the management-panel UI) is **built and in review** — with it the
-> **high-priority tier is empty**. See `features.md` and §2/§3/§8. The reminder path
+> **high-priority tier is empty**. A **cosmetic brand restyle** (Norcal Crew design
+> system — black canvas + gold accent, Quicksand/Open Sans, header logo + theme
+> toggle, fixed favicon/title; token-driven, no migration) is also **built and in
+> review** on `feat-brand-restyle`. See `features.md` and §2/§3/§8. The reminder path
 > is **built but parked**; everything else outstanding is Low-priority.
 > Read `CLAUDE.md`, `roadmap.md`, `structure.md`, and `features.md` first — they are
 > current and authoritative. This file orients you and captures the operational/workflow

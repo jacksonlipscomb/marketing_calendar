@@ -37,6 +37,14 @@ type UiState = {
   scheduleDialog: { open: boolean; deliverable: ScheduleTarget | null }
   openScheduleEmail: (deliverable: ScheduleTarget) => void
   closeScheduleDialog: () => void
+
+  // Light/dark theme. The default is dark (black brand canvas). The real source
+  // of truth at paint time is the `dark` class on <html>, set by index.html's
+  // inline boot script before React mounts (no flash); this slice mirrors it so
+  // the header toggle can read/flip it. toggleTheme flips the class and persists
+  // to localStorage.
+  theme: "dark" | "light"
+  toggleTheme: () => void
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -75,4 +83,27 @@ export const useUiStore = create<UiState>((set) => ({
     set({ scheduleDialog: { open: true, deliverable } }),
   closeScheduleDialog: () =>
     set({ scheduleDialog: { open: false, deliverable: null } }),
+
+  // Initialize from the class the boot script already applied, so the toggle's
+  // first render matches what's on screen. Guard `document` for any non-DOM
+  // (test/SSR) context; default dark there.
+  theme:
+    typeof document !== "undefined" &&
+    !document.documentElement.classList.contains("dark")
+      ? "light"
+      : "dark",
+  toggleTheme: () =>
+    set((s) => {
+      const next = s.theme === "dark" ? "light" : "dark"
+      if (typeof document !== "undefined") {
+        document.documentElement.classList.toggle("dark", next === "dark")
+      }
+      try {
+        localStorage.setItem("theme", next)
+      } catch {
+        // Persistence is best-effort (blocked storage, sandboxed context). The
+        // in-memory toggle still works for this session.
+      }
+      return { theme: next }
+    }),
 }))
