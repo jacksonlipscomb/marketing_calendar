@@ -1,6 +1,13 @@
 # NorcalOS — Production Plan
 
-> **Status:** draft for owner review · **Last updated:** 2026-07-01
+> **Status: supersession pending (2026-07-21).** NorcalOS
+> `docs/proposals/2026-07-21-marketing-production-spec.md` (in spec-gate
+> review) absorbs this plan's load-bearing content (risks R1/R2 resolve via
+> that spec's §15.2 containment + decommission checklist; the CRM bake-off
+> resolved to Atomic CRM). Upon that spec's approval this document becomes
+> historical and this repo is scheduled for decommission per that checklist.
+> Original status follows.
+> **Original status:** draft for owner review · **Last updated:** 2026-07-01
 > **Audience:** internal planning (owner + agents). Not a stakeholder-facing deliverable.
 > **Companion:** [production-spec.md](production-spec.md) — what production is, the budget constraint, the CRM bake-off criteria, the Supabase/CRM boundary, and the open questions (O1–O8) this plan references.
 > This plan contains **no timelines or estimates — deliberately**. It defines what "production ready" means (§2) and orders the work by dependency (§3–§4). The working agreement in [CLAUDE.md](../CLAUDE.md) still governs all work this plan schedules: plan-mode first, owner merges, destructive-migration callouts in plain words.
