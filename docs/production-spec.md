@@ -1,6 +1,13 @@
 # NorcalOS — Production Spec
 
-> **Status:** draft for owner review · **CRM: TBD — bake-off pending** (§4–§5) · **Last updated:** 2026-07-01
+> **Status: HISTORICAL** (operator-approved §15.1 dispositions,
+> 2026-07-28). Load-bearing content — the six invariants, the CRM bake-off
+> outcome (Atomic CRM selected; Twenty dropped over paid-gated OAuth), and
+> the prototype disposition — is absorbed into NorcalOS
+> `docs/proposals/2026-07-21-marketing-production-spec.md` §7.4/§15.2 (spec
+> gate passed round 32). This repo is scheduled for decommission per that
+> spec's §15.2 checklist. Original status follows.
+> **Original status:** draft for owner review · **CRM: TBD — bake-off pending** (§4–§5) · **Last updated:** 2026-07-01
 > **Audience:** internal planning (owner + agents). Not a stakeholder-facing deliverable.
 > **Companion:** [production-plan.md](production-plan.md) — definition of done, dependency-ordered work, risks, and owner decisions. This spec says *what* production is; the plan says *what order to build it in*.
 > **Prototype reference set:** [roadmap.md](../roadmap.md) (data model, function contracts), [structure.md](../structure.md) (setup, pipelines), [features.md](../features.md) (feature status). [CLAUDE.md](../CLAUDE.md) remains the standing rule set. This spec extends those docs; where it flips a prototype-scope decision (real accounts, audience delivery), it says so explicitly.
