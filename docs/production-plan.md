@@ -1,11 +1,11 @@
 # NorcalOS — Production Plan
 
-> **Status: supersession pending (2026-07-21).** NorcalOS
-> `docs/proposals/2026-07-21-marketing-production-spec.md` (in spec-gate
-> review) absorbs this plan's load-bearing content (risks R1/R2 resolve via
-> that spec's §15.2 containment + decommission checklist; the CRM bake-off
-> resolved to Atomic CRM). Upon that spec's approval this document becomes
-> historical and this repo is scheduled for decommission per that checklist.
+> **Status: HISTORICAL** (operator-approved §15.1 dispositions,
+> 2026-07-28). Load-bearing content (risks R1/R2 resolve via the NorcalOS
+> spec's §15.2 containment + decommission checklist; the CRM bake-off
+> resolved to Atomic CRM) is absorbed into NorcalOS
+> `docs/proposals/2026-07-21-marketing-production-spec.md` (spec gate passed
+> round 32). This repo is scheduled for decommission per that checklist.
 > Original status follows.
 > **Original status:** draft for owner review · **Last updated:** 2026-07-01
 > **Audience:** internal planning (owner + agents). Not a stakeholder-facing deliverable.
